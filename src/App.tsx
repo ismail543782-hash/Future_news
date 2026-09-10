@@ -272,7 +272,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-stone-50 flex flex-col selection:bg-rose-600 selection:text-white">
+      <div className="min-h-screen w-full bg-stone-50 flex flex-col selection:bg-rose-600 selection:text-white overflow-y-visible">
         {/* Header */}
         <Header
           categories={categories}
@@ -306,7 +306,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1">
+        <div className="flex-1 w-full overflow-y-visible">
           {/* Single Blog Detail Reader */}
           {selectedBlogSlug ? (
             selectedBlog ? (

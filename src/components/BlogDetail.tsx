@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BlogPost, Language, Comment } from '../types/news';
 import {
   incrementBlogViews,
@@ -54,17 +54,22 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
   const [commentText, setCommentText] = useState('');
   const [commentSuccess, setCommentSuccess] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const recordedBlogIdRef = useRef<string | null>(null);
 
-  // Sync SEO and record view
+  // Sync SEO and record view strictly once per blog to prevent infinite re-render loops and scroll-lock
   useEffect(() => {
-    if (blog) {
-      updateBlogPageSeo(blog, contentLang);
+    if (!blog?.id) return;
+
+    if (recordedBlogIdRef.current !== blog.id) {
+      recordedBlogIdRef.current = blog.id;
       incrementBlogViews(blog.id);
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 0);
+      }
     }
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [blog, contentLang]);
+
+    updateBlogPageSeo(blog, contentLang);
+  }, [blog?.id, blog?.slug, contentLang]);
 
   const handleToggleLike = () => {
     if (!blog?.id) return;
@@ -142,7 +147,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
   };
 
   return (
-    <div className="bg-stone-50 min-h-screen py-6 sm:py-10">
+    <div className="bg-stone-50 min-h-screen w-full py-6 sm:py-10 pb-32 overflow-y-visible">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         {/* Navigation Bar */}
         <div className="flex items-center justify-between gap-4 mb-6">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Article, Category, Author, Language, Comment } from '../types/news';
 import { incrementArticleViews, getComments, addComment } from '../utils/storage';
 import { updatePageSeo } from '../utils/seo';
@@ -54,16 +54,25 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
   const [newAuthorEmail, setNewAuthorEmail] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
   const [commentSubmitted, setCommentSubmitted] = useState(false);
+  const recordedArticleIdRef = useRef<string | null>(null);
 
   // Unique article URL
   const articleUrl = `${window.location.origin}/news/${article.slug}`;
 
   useEffect(() => {
-    // Increment views once on load
-    incrementArticleViews(article.id);
+    if (!article?.id) return;
+
+    // Increment views and scroll to top strictly once per article to avoid scroll interference
+    if (recordedArticleIdRef.current !== article.id) {
+      recordedArticleIdRef.current = article.id;
+      incrementArticleViews(article.id);
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 0);
+      }
+    }
+
     updatePageSeo(article, language);
     setComments(getComments(article.id));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Scroll progress handler
     const handleScroll = () => {
@@ -72,7 +81,7 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
         setScrollProgress(Math.min(100, Math.max(0, (window.scrollY / totalHeight) * 100)));
       }
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.speechSynthesis?.cancel();
@@ -204,9 +213,9 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
     .filter((p) => p.length > 0);
 
   return (
-    <div className="min-h-screen bg-stone-50 pb-16">
+    <div className="min-h-screen w-full bg-stone-50 pb-32 overflow-y-visible">
       {/* Sticky Reading Progress Bar */}
-      <div className="fixed top-0 left-0 w-full h-1 bg-stone-200 z-50">
+      <div className="fixed top-0 left-0 w-full h-1 bg-stone-200 z-50 pointer-events-none">
         <div
           className="h-full bg-rose-600 transition-all duration-150"
           style={{ width: `${scrollProgress}%` }}
