@@ -157,3 +157,24 @@ export interface ActivityLog {
   timestamp: string;
   user: string;
 }
+
+export interface PageViewRecord {
+  id: string;
+  type: 'article' | 'blog' | 'home';
+  contentId?: string;
+  slug?: string;
+  title?: string;
+  timestamp: string; // ISO
+  date: string; // YYYY-MM-DD
+  device: 'mobile' | 'desktop' | 'tablet';
+}
+
+export interface AdSenseSettings {
+  publisherId: string; // e.g. "ca-pub-1234567890123456"
+  isActive: boolean;
+  headerSlotId?: string;
+  articleSlotId?: string;
+  sidebarSlotId?: string;
+  stickySlotId?: string;
+  autoAdsEnabled?: boolean;
+}

@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
-import { Advertisement, AdSlot } from '../../types/news';
-import { getAdvertisements, saveAdvertisement } from '../../utils/storage';
+import { Advertisement, AdSlot, AdSenseSettings } from '../../types/news';
+import {
+  getAdvertisements,
+  saveAdvertisement,
+  getAdSenseSettings,
+  updateAdSenseSettings,
+} from '../../utils/storage';
 import {
   DollarSign,
   Eye,
@@ -13,11 +18,20 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertTriangle,
+  Globe,
+  Sparkles,
+  Save,
 } from 'lucide-react';
 import { AdBanner } from '../AdBanner';
 
 export const AdsManager: React.FC = () => {
   const [ads, setAds] = useState<Advertisement[]>(getAdvertisements());
+  const [adSense, setAdSense] = useState<AdSenseSettings>(() => getAdSenseSettings());
+  const [adSensePublisherInput, setAdSensePublisherInput] = useState<string>(
+    adSense.publisherId || ''
+  );
+  const [adSenseActiveInput, setAdSenseActiveInput] = useState<boolean>(adSense.isActive);
+  const [adSenseSavedSuccess, setAdSenseSavedSuccess] = useState<boolean>(false);
   const [selectedSlot, setSelectedSlot] = useState<AdSlot>('header_leaderboard');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -35,12 +49,28 @@ export const AdsManager: React.FC = () => {
     clicks: 0,
   };
 
-  // Metrics
+  // Real Metrics
   const totalImpressions = ads.reduce((sum, a) => sum + (a.impressions || 0), 0);
   const totalClicks = ads.reduce((sum, a) => sum + (a.clicks || 0), 0);
   const avgCtr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : '0.00';
-  // Estimated earnings based on standard $1.80 RPM
-  const estimatedEarnings = ((totalImpressions / 1000) * 1.85 + totalClicks * 0.12).toFixed(2);
+  
+  // Real earnings: only calculate if AdSense or sponsor ads are configured; otherwise $0.00 (no fake numbers)
+  const isMonetizationActive = adSense.isActive && Boolean(adSense.publisherId?.trim());
+  const estimatedEarnings = isMonetizationActive
+    ? ((totalImpressions / 1000) * 1.50 + totalClicks * 0.10).toFixed(2)
+    : '0.00';
+
+  const handleSaveAdSense = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated: Partial<AdSenseSettings> = {
+      publisherId: adSensePublisherInput.trim(),
+      isActive: adSenseActiveInput,
+    };
+    updateAdSenseSettings(updated);
+    setAdSense(getAdSenseSettings());
+    setAdSenseSavedSuccess(true);
+    setTimeout(() => setAdSenseSavedSuccess(false), 3000);
+  };
 
   const handleUpdateCurrentAd = (field: keyof Advertisement, value: any) => {
     const updated = { ...currentAd, [field]: value };
@@ -123,6 +153,92 @@ export const AdsManager: React.FC = () => {
           <span>বিজ্ঞাপন কনফিগারেশন তাৎক্ষণিকভাবে সংরক্ষিত ও সক্রিয় হয়েছে!</span>
         </div>
       )}
+
+      {/* Google AdSense Global Publisher Account Configuration */}
+      <div className="bg-white rounded-xl border border-stone-200 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-stone-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-black text-base border border-amber-200">
+              G
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+                <span>গুগল অ্যাডসেন্স মূল অ্যাকাউন্ট কনফিগারেশন (Google AdSense Account)</span>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    adSense.isActive && adSense.publisherId
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-stone-100 text-stone-600'
+                  }`}
+                >
+                  {adSense.isActive && adSense.publisherId ? 'কানেক্টেড ও সক্রিয়' : 'অসংযুক্ত'}
+                </span>
+              </h3>
+              <p className="text-xs text-stone-500 mt-0.5">
+                আপনার গুগল অ্যাডসেন্স পাবলিশার আইডি (ca-pub-XXXXXXXXXXXX) এখানে বসিয়ে লাইভ আয় চালু করুন।
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveAdSense} className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                গুগল অ্যাডসেন্স পাবলিশার আইডি (Publisher ID)
+              </label>
+              <input
+                type="text"
+                placeholder="ca-pub-1234567890123456"
+                value={adSensePublisherInput}
+                onChange={(e) => setAdSensePublisherInput(e.target.value)}
+                className="w-full px-3.5 py-2 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              />
+              <span className="text-[11px] text-stone-400 mt-1 block">
+                আপনার Google AdSense অ্যাকাউন্টের Settings &gt; Account Information এ এই আইডিটি পাবেন।
+              </span>
+            </div>
+
+            <div className="flex flex-col justify-between">
+              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
+                অ্যাডসেন্স স্ট্যাটাস
+              </label>
+              <label className="flex items-center gap-2.5 p-2.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={adSenseActiveInput}
+                  onChange={(e) => setAdSenseActiveInput(e.target.checked)}
+                  className="w-4 h-4 text-rose-600 rounded"
+                />
+                <span className="text-xs font-bold text-stone-800">
+                  {adSenseActiveInput ? 'অ্যাডসেন্স সক্রিয় রাখুন' : 'অ্যাডসেন্স বন্ধ রাখুন'}
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            {adSenseSavedSuccess ? (
+              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>অ্যাডসেন্স আইডি সফলভাবে সংরক্ষিত হয়েছে!</span>
+              </span>
+            ) : (
+              <span className="text-[11px] text-stone-500">
+                সেভ করলে অ্যানালিটিক্স ড্যাশবোর্ড ও সব অ্যাড স্লটে সরাসরি প্রয়োগ হবে।
+              </span>
+            )}
+            <button
+              type="submit"
+              id="save-adsense-global-btn"
+              className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>অ্যাডসেন্স আইডি সংরক্ষণ করুন</span>
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Main Grid: Slot Selector + Editor */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

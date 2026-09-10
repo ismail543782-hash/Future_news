@@ -384,11 +384,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <AnalyticsDashboard
               articles={articles}
               categories={categories}
+              blogs={getBlogs()}
               onSelectArticle={onSelectArticle}
+              onSelectBlog={onSelectBlog}
               onEditArticle={(art) => {
                 setEditingArticle(art);
                 setActiveTab('new_article');
               }}
+              onNavigateTab={(tab) => setActiveTab(tab as any)}
             />
           )}
 
