@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+
+# Googlebot & Major Crawlers
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+
+User-agent: Googlebot-News
+Allow: /
+Disallow: /admin
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+
+# XML Sitemap declaration for Google Search Console
+Sitemap: https://futurenews.netlify.app/sitemap.xml
