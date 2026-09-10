@@ -13,6 +13,7 @@ import {
 import { updatePageSeo, updateBlogPageSeo } from './utils/seo';
 
 // Components
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { BreakingNewsTicker } from './components/BreakingNewsTicker';
 import { HeroSection } from './components/HeroSection';
@@ -87,8 +88,11 @@ export default function App() {
       setSelectedBlogSlug(null);
     } else if (path === '/admin') {
       if (isAdminLoggedIn()) {
+        setIsAdmin(true);
         setInAdminView(true);
       } else {
+        setIsAdmin(false);
+        setInAdminView(false);
         setShowLoginModal(true);
       }
     }
@@ -115,8 +119,11 @@ export default function App() {
         setInAdminView(false);
       } else if (currentPath === '/admin') {
         if (isAdminLoggedIn()) {
+          setIsAdmin(true);
           setInAdminView(true);
         } else {
+          setIsAdmin(false);
+          setInAdminView(false);
           setShowLoginModal(true);
         }
       } else {
@@ -125,10 +132,23 @@ export default function App() {
         setInBlogHubView(false);
         setInAdminView(false);
       }
+      loadData();
+    };
+
+    // Auto sync when data changes anywhere
+    const handleDataUpdate = () => {
+      loadData();
     };
 
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('futurenews_data_updated', handleDataUpdate);
+    window.addEventListener('storage', handleDataUpdate);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('futurenews_data_updated', handleDataUpdate);
+      window.removeEventListener('storage', handleDataUpdate);
+    };
   }, [loadData]);
 
   // Handle unique article URL navigation
@@ -151,6 +171,7 @@ export default function App() {
 
   // Handle Opening Blog Hub Feed
   const handleOpenBlogHub = () => {
+    loadData();
     setInBlogHubView(true);
     setSelectedBlogSlug(null);
     setSelectedSlug(null);
@@ -162,6 +183,7 @@ export default function App() {
 
   // Handle Return to Home
   const handleGoHome = () => {
+    loadData();
     setSelectedSlug(null);
     setSelectedBlogSlug(null);
     setInBlogHubView(false);
@@ -196,18 +218,27 @@ export default function App() {
   };
 
   // Filter articles based on Category, Search & Published Status
-  const publishedArticles = articles.filter(
-    (a) => a.status === 'published' || a.status === undefined
+  const publishedArticles = (articles || []).filter(
+    (a) => a && (a.status === 'published' || a.status === undefined)
   );
 
   const filteredArticles = publishedArticles.filter((art) => {
+    if (!art) return false;
     const matchesCategory = activeCategory === null || art.category_id === activeCategory;
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return matchesCategory;
+
+    const titleBn = (art.title_bn || '').toLowerCase();
+    const titleEn = (art.title_en || '').toLowerCase();
+    const summaryBn = (art.summary_bn || '').toLowerCase();
+    const summaryEn = (art.summary_en || '').toLowerCase();
+
     const matchesSearch =
-      searchQuery.trim() === '' ||
-      art.title_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.summary_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      art.summary_en.toLowerCase().includes(searchQuery.toLowerCase());
+      titleBn.includes(query) ||
+      titleEn.includes(query) ||
+      summaryBn.includes(query) ||
+      summaryEn.includes(query);
+
     return matchesCategory && matchesSearch;
   });
 
@@ -215,7 +246,7 @@ export default function App() {
   const leadArticle =
     publishedArticles.find((a) => a.is_featured) || publishedArticles[0];
   const subArticles = publishedArticles
-    .filter((a) => a.id !== leadArticle?.id)
+    .filter((a) => a && a.id !== leadArticle?.id)
     .slice(0, 3);
 
   // If a single news article or blog is selected, pick entity
@@ -225,83 +256,142 @@ export default function App() {
   // View: Admin Dashboard
   if (inAdminView && isAdmin) {
     return (
-      <AdminDashboard
-        articles={articles}
-        categories={categories}
-        authors={authors}
-        onRefreshData={loadData}
-        onExitAdmin={handleGoHome}
-        onSelectArticle={handleSelectArticle}
-        onSelectBlog={handleSelectBlog}
-      />
+      <ErrorBoundary fallbackTitle="অ্যাডমিন ড্যাশবোর্ডে ত্রুটি">
+        <AdminDashboard
+          articles={articles}
+          categories={categories}
+          authors={authors}
+          onRefreshData={loadData}
+          onExitAdmin={handleGoHome}
+          onSelectArticle={handleSelectArticle}
+          onSelectBlog={handleSelectBlog}
+        />
+      </ErrorBoundary>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col selection:bg-rose-600 selection:text-white">
-      {/* Header */}
-      <Header
-        categories={categories}
-        activeCategory={activeCategory}
-        onSelectCategory={(catId) => {
-          setActiveCategory(catId);
-          setSelectedSlug(null);
-          setSelectedBlogSlug(null);
-          setInBlogHubView(false);
-          setSearchQuery('');
-          window.history.pushState({}, '', '/');
-        }}
-        language={language}
-        onToggleLanguage={setLanguage}
-        onOpenAdmin={handleOpenAdmin}
-        isAdmin={isAdmin}
-        onSearch={setSearchQuery}
-        searchQuery={searchQuery}
-        onGoHome={handleGoHome}
-        isBlogHubActive={inBlogHubView || !!selectedBlogSlug}
-        onOpenBlogHub={handleOpenBlogHub}
-        onOpenWriteBlog={() => setShowWriteBlogModal(true)}
-      />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-stone-50 flex flex-col selection:bg-rose-600 selection:text-white">
+        {/* Header */}
+        <Header
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelectCategory={(catId) => {
+            loadData();
+            setActiveCategory(catId);
+            setSelectedSlug(null);
+            setSelectedBlogSlug(null);
+            setInBlogHubView(false);
+            setSearchQuery('');
+            window.history.pushState({}, '', '/');
+          }}
+          language={language}
+          onToggleLanguage={setLanguage}
+          onOpenAdmin={handleOpenAdmin}
+          isAdmin={isAdmin}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+          onGoHome={handleGoHome}
+          isBlogHubActive={inBlogHubView || !!selectedBlogSlug}
+          onOpenBlogHub={handleOpenBlogHub}
+          onOpenWriteBlog={() => setShowWriteBlogModal(true)}
+        />
 
-      {/* Breaking News Ticker */}
-      <BreakingNewsTicker
-        items={breakingNews}
-        language={language}
-        onSelectArticle={handleSelectArticle}
-      />
+        {/* Breaking News Ticker */}
+        <BreakingNewsTicker
+          items={breakingNews}
+          language={language}
+          onSelectArticle={handleSelectArticle}
+        />
 
-      {/* Main Content Area */}
-      <div className="flex-1">
-        {/* Single Blog Detail Reader */}
-        {selectedBlog ? (
-          <BlogDetail
-            blog={selectedBlog}
-            language={language}
-            onBack={handleOpenBlogHub}
-            onSelectBlog={handleSelectBlog}
-          />
-        ) : inBlogHubView ? (
-          /* Public Blog Hub & Photo Gallery */
-          <BlogHub
-            language={language}
-            onSelectBlog={handleSelectBlog}
-            onOpenWriteModal={() => setShowWriteBlogModal(true)}
-            onBackToNews={handleGoHome}
-          />
-        ) : selectedArticle ? (
-          /* Single News Article Deep-Linked View */
-          <NewsDetail
-            article={selectedArticle}
-            category={categories.find((c) => c.id === selectedArticle.category_id)}
-            author={authors.find((a) => a.id === selectedArticle.author_id)}
-            allArticles={publishedArticles}
-            categories={categories}
-            language={language}
-            onBack={handleGoHome}
-            onSelectArticle={handleSelectArticle}
-            onToggleLanguage={setLanguage}
-          />
-        ) : (
+        {/* Main Content Area */}
+        <div className="flex-1">
+          {/* Single Blog Detail Reader */}
+          {selectedBlogSlug ? (
+            selectedBlog ? (
+              <BlogDetail
+                blog={selectedBlog}
+                allBlogs={blogs}
+                initialLanguage={language}
+                language={language}
+                onBack={handleOpenBlogHub}
+                onSelectBlog={handleSelectBlog}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full mx-auto flex items-center justify-center">
+                  <Newspaper className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-900">
+                  {language === 'bn' ? 'ব্লগটি খুঁজে পাওয়া যায়নি' : 'Blog Post Not Found'}
+                </h2>
+                <p className="text-stone-600 text-sm">
+                  {language === 'bn'
+                    ? 'যে ব্লগ পোস্টটি খুঁজছেন তা মুছে ফেলা হয়েছে অথবা লিংকটি পরিবর্তন হয়েছে।'
+                    : 'The blog article you are looking for has been moved or removed.'}
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenBlogHub}
+                    className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <span>{language === 'bn' ? 'সকল ব্লগ দেখুন' : 'Browse All Blogs'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ) : inBlogHubView ? (
+            /* Public Blog Hub & Photo Gallery */
+            <BlogHub
+              blogs={blogs}
+              language={language}
+              onSelectBlog={handleSelectBlog}
+              onOpenWriteModal={() => setShowWriteBlogModal(true)}
+              onBackToNews={handleGoHome}
+            />
+          ) : selectedSlug ? (
+            selectedArticle ? (
+              /* Single News Article Deep-Linked View */
+              <NewsDetail
+                article={selectedArticle}
+                category={categories.find((c) => c.id === selectedArticle.category_id)}
+                author={authors.find((a) => a.id === selectedArticle.author_id)}
+                allArticles={publishedArticles}
+                categories={categories}
+                language={language}
+                onBack={handleGoHome}
+                onSelectArticle={handleSelectArticle}
+                onToggleLanguage={setLanguage}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full mx-auto flex items-center justify-center">
+                  <Newspaper className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-900">
+                  {language === 'bn' ? 'সংবাদটি খুঁজে পাওয়া যায়নি' : 'Article Not Found'}
+                </h2>
+                <p className="text-stone-600 text-sm">
+                  {language === 'bn'
+                    ? 'যে সংবাদটি খুঁজছেন তা মুছে ফেলা হয়েছে অথবা ইউআরএল লিংকটি ভুল।'
+                    : 'The news story you are looking for cannot be located.'}
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleGoHome}
+                    className="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <span>{language === 'bn' ? 'মূল পাতায় ফিরে যান' : 'Back to Home'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
           /* Portal Homepage / Category Feed */
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             {/* If user searched or selected a category, show the filtered grid banner */}
@@ -509,7 +599,7 @@ export default function App() {
                     />
                     <div className="min-w-0 flex-1">
                       <span className="text-[10px] font-bold text-purple-300 uppercase block mb-0.5">
-                        {b.category}
+                        {language === 'bn' ? b.category_name_bn : b.category_name_en}
                       </span>
                       <h4 className="text-xs font-bold text-white group-hover:text-purple-300 transition-colors line-clamp-2 leading-snug">
                         {language === 'bn' ? b.title_bn : b.title_en}
@@ -557,12 +647,18 @@ export default function App() {
         }}
       />
 
-      {/* Admin Login Modal Gate */}
-      <AdminLoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onSuccess={handleLoginSuccess}
-      />
-    </div>
+        {/* Admin Login Modal Gate */}
+        <AdminLoginModal
+          isOpen={showLoginModal}
+          onClose={() => {
+            setShowLoginModal(false);
+            if (window.location.pathname === '/admin') {
+              window.history.pushState({}, '', '/');
+            }
+          }}
+          onSuccess={handleLoginSuccess}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Language, CountryEdition } from '../types/news';
-import { Search, Globe, Shield, LogIn, Menu, X, Flame, PenTool, Sparkles } from 'lucide-react';
+import { Search, Globe, Shield, Lock, Menu, X, Flame, PenTool, Sparkles } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { CountryEditionSelector } from './CountryEditionSelector';
 
@@ -146,8 +146,8 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               ) : (
                 <>
-                  <LogIn className="w-3.5 h-3.5" />
-                  <span>এডমিন লগইন</span>
+                  <Lock className="w-3.5 h-3.5 text-stone-400" />
+                  <span className="hidden sm:inline">এডমিন</span>
                 </>
               )}
             </button>

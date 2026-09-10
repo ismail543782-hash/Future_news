@@ -79,38 +79,57 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
     };
   }, [article.id, article.slug, language]);
 
-  const title = language === 'bn' ? article.title_bn : article.title_en;
-  const summary = language === 'bn' ? article.summary_bn : article.summary_en;
-  const content = language === 'bn' ? article.content_bn : article.content_en;
+  const title =
+    (language === 'bn' ? article?.title_bn : article?.title_en) ||
+    article?.title_bn ||
+    article?.title_en ||
+    '';
+  const summary =
+    (language === 'bn' ? article?.summary_bn : article?.summary_en) ||
+    article?.summary_bn ||
+    article?.summary_en ||
+    '';
+  const content =
+    (language === 'bn' ? article?.content_bn : article?.content_en) ||
+    article?.content_bn ||
+    article?.content_en ||
+    '';
   const catName = category ? (language === 'bn' ? category.name_bn : category.name_en) : '';
   const authorName = author ? (language === 'bn' ? author.name_bn : author.name_en) : 'Staff Reporter';
   const authorRole = author ? (language === 'bn' ? author.role_bn : author.role_en) : '';
   const authorBio = author ? (language === 'bn' ? author.bio_bn : author.bio_en) : '';
-  const caption = language === 'bn' ? article.image_caption_bn : article.image_caption_en;
+  const caption = (language === 'bn' ? article?.image_caption_bn : article?.image_caption_en) || article?.image_caption_bn || '';
 
-  // Format date
-  const formattedDate = new Date(article.published_at).toLocaleDateString(
-    language === 'bn' ? 'bn-BD' : 'en-US',
-    {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+  // Safe format date
+  const formattedDate = (() => {
+    try {
+      const d = article?.published_at ? new Date(article.published_at) : new Date();
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '';
     }
-  );
+  })();
 
   // Copy Link action
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(articleUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(articleUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }
   };
 
   // Text-To-Speech reader
   const handleToggleAudio = () => {
-    if (!('speechSynthesis' in window)) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert(language === 'bn' ? 'আপনার ব্রাউজারে অডিও রিডার সমর্থিত নয়' : 'Audio reader not supported');
       return;
     }
@@ -119,7 +138,8 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
       window.speechSynthesis.cancel();
       setIsPlayingAudio(false);
     } else {
-      const textToRead = `${title}. ${summary}. ${content.replace(/\n+/g, ' ')}`;
+      const cleanContent = (content || '').replace(/\n+/g, ' ');
+      const textToRead = `${title}. ${summary}. ${cleanContent}`.slice(0, 800);
       const utterance = new SpeechSynthesisUtterance(textToRead);
       utterance.lang = language === 'bn' ? 'bn-BD' : 'en-US';
       utterance.rate = 0.95;
@@ -146,7 +166,7 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
       shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
     }
 
-    if (shareUrl) {
+    if (shareUrl && typeof window !== 'undefined') {
       window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
     }
   };
@@ -173,12 +193,15 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
   };
 
   // Related articles
-  const relatedArticles = allArticles
-    .filter((a) => a.id !== article.id)
+  const relatedArticles = (allArticles || [])
+    .filter((a) => a && a.id !== article?.id)
     .slice(0, 3);
 
   // Split content into paragraphs for readable typography & in-article ad placement
-  const paragraphs = content.split('\n').filter((p) => p.trim().length > 0);
+  const paragraphs = (content || '')
+    .split('\n')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
 
   return (
     <div className="min-h-screen bg-stone-50 pb-16">
@@ -329,13 +352,15 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
 
               <span className="flex items-center gap-1 text-xs text-stone-600 bg-stone-100 px-2.5 py-1.5 rounded-full">
                 <Eye className="w-3.5 h-3.5 text-stone-600" />
-                <span>{article.views.toLocaleString()}</span>
+                <span>{(article?.views || 0).toLocaleString()}</span>
               </span>
 
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="p-1.5 text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-full hover:bg-stone-50"
+                onClick={() => {
+                  if (typeof window !== 'undefined') window.print();
+                }}
+                className="p-1.5 text-stone-600 hover:text-stone-900 bg-white border border-stone-200 rounded-full hover:bg-stone-50 cursor-pointer"
                 title="Print Article"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -351,15 +376,15 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
             {/* Featured Image */}
             <div className="overflow-hidden rounded-xl bg-stone-900 shadow-md">
               <img
-                src={article.featured_image}
+                src={article?.featured_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80'}
                 alt={title}
                 className="w-full h-auto max-h-[520px] object-cover"
                 referrerPolicy="no-referrer"
               />
-              {(caption || article.image_credit) && (
+              {(caption || article?.image_credit) && (
                 <div className="p-3 bg-stone-900 text-stone-300 text-xs flex flex-wrap items-center justify-between gap-2 border-t border-stone-800">
                   {caption && <span className="italic">{caption}</span>}
-                  {article.image_credit && (
+                  {article?.image_credit && (
                     <span className="text-[11px] text-stone-400">ছবি: {article.image_credit}</span>
                   )}
                 </div>

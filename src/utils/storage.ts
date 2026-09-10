@@ -9,8 +9,31 @@ const AUTHORS_KEY = 'fn_authors_v1';
 const COMMENTS_KEY = 'fn_comments_v1';
 const LOGS_KEY = 'fn_logs_v1';
 const ADMIN_AUTH_KEY = 'fn_admin_session_v1';
+const ADMIN_CREDS_KEY = 'fn_admin_creds_v1';
+const ADMIN_LOCKOUT_KEY = 'fn_admin_lockout_v1';
 const BLOGS_KEY = 'fn_blogs_v1';
 const EDITION_KEY = 'fn_current_edition_v1';
+
+export interface AdminCredentials {
+  email: string;
+  password: string;
+  recoveryPin: string;
+  updatedAt: string;
+}
+
+export interface LockoutStatus {
+  attempts: number;
+  lockedUntil: number;
+}
+
+const DEFAULT_ADMIN_CREDS: AdminCredentials = {
+  email: 'ismail543782@gmail.com',
+  password: 'Admin#Ismail2026',
+  recoveryPin: '782543',
+  updatedAt: new Date().toISOString(),
+};
+
+const SESSION_DURATION_MS = 4 * 60 * 60 * 1000; // 4 Hours Session Expiry
 
 // Initial Comments
 const INITIAL_COMMENTS: Comment[] = [
@@ -34,6 +57,12 @@ const INITIAL_COMMENTS: Comment[] = [
   }
 ];
 
+export function notifyDataChange(type: string = 'general') {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('futurenews_data_updated', { detail: { type } }));
+  }
+}
+
 export function getArticles(): Article[] {
   try {
     const raw = localStorage.getItem(ARTICLES_KEY);
@@ -41,7 +70,8 @@ export function getArticles(): Article[] {
       localStorage.setItem(ARTICLES_KEY, JSON.stringify(INITIAL_ARTICLES));
       return INITIAL_ARTICLES;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : INITIAL_ARTICLES;
   } catch (e) {
     console.error('Failed to read articles from localStorage', e);
     return INITIAL_ARTICLES;
@@ -55,10 +85,10 @@ export function saveArticle(article: Article): void {
   if (index >= 0) {
     updated = [...articles];
     updated[index] = { ...article, updated_at: new Date().toISOString() };
-    logActivity('Article Updated', `Updated article: ${article.title_bn}`);
+    logActivity('Article Updated', `Updated article: ${article.title_bn || article.title_en}`);
   } else {
     updated = [article, ...articles];
-    logActivity('Article Created', `Published new article: ${article.title_bn}`);
+    logActivity('Article Created', `Published new article: ${article.title_bn || article.title_en}`);
   }
   localStorage.setItem(ARTICLES_KEY, JSON.stringify(updated));
 
@@ -66,6 +96,7 @@ export function saveArticle(article: Article): void {
   if (article.is_breaking) {
     syncBreakingNewsWithArticle(article);
   }
+  notifyDataChange('articles');
 }
 
 export function deleteArticle(id: string): void {
@@ -74,18 +105,21 @@ export function deleteArticle(id: string): void {
   const filtered = articles.filter((a) => a.id !== id);
   localStorage.setItem(ARTICLES_KEY, JSON.stringify(filtered));
   if (target) {
-    logActivity('Article Deleted', `Deleted article: ${target.title_bn}`);
+    logActivity('Article Deleted', `Deleted article: ${target.title_bn || target.title_en}`);
   }
+  notifyDataChange('articles');
 }
 
 export function getArticleBySlug(slug: string): Article | undefined {
+  if (!slug) return undefined;
   const articles = getArticles();
-  const decodedSlug = decodeURIComponent(slug).toLowerCase().trim();
+  const decodedSlug = decodeURIComponent(slug).toLowerCase().trim().replace(/^\/+|\/+$/g, '');
   return articles.find(
     (a) =>
-      a.slug.toLowerCase().trim() === decodedSlug ||
-      (a.slug_bn && a.slug_bn.toLowerCase().trim() === decodedSlug) ||
-      (a.slug_en && a.slug_en.toLowerCase().trim() === decodedSlug)
+      a.slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '') === decodedSlug ||
+      (a.slug_bn && a.slug_bn.toLowerCase().trim().replace(/^\/+|\/+$/g, '') === decodedSlug) ||
+      (a.slug_en && a.slug_en.toLowerCase().trim().replace(/^\/+|\/+$/g, '') === decodedSlug) ||
+      a.id === decodedSlug
   );
 }
 
@@ -298,17 +332,161 @@ export function logActivity(action: string, details: string): void {
   } catch {}
 }
 
-// Admin Authentication
+// Admin Authentication & Credentials Management
+export function getAdminCredentials(): AdminCredentials {
+  try {
+    const raw = localStorage.getItem(ADMIN_CREDS_KEY);
+    if (!raw) {
+      localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(DEFAULT_ADMIN_CREDS));
+      return DEFAULT_ADMIN_CREDS;
+    }
+    const parsed: AdminCredentials = JSON.parse(raw);
+    return parsed.password ? parsed : DEFAULT_ADMIN_CREDS;
+  } catch {
+    return DEFAULT_ADMIN_CREDS;
+  }
+}
+
+export function updateAdminCredentials(newCreds: Partial<AdminCredentials>): void {
+  const current = getAdminCredentials();
+  const updated: AdminCredentials = {
+    ...current,
+    ...newCreds,
+    updatedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify(updated));
+  logActivity('Security Updated', `Admin credentials updated (Email: ${updated.email})`);
+}
+
+export function getLockoutStatus(): LockoutStatus {
+  try {
+    const raw = localStorage.getItem(ADMIN_LOCKOUT_KEY);
+    if (!raw) return { attempts: 0, lockedUntil: 0 };
+    return JSON.parse(raw);
+  } catch {
+    return { attempts: 0, lockedUntil: 0 };
+  }
+}
+
+export function recordFailedLoginAttempt(): { isLocked: boolean; attemptsLeft: number; lockedUntil: number } {
+  const current = getLockoutStatus();
+  const now = Date.now();
+
+  if (current.lockedUntil && current.lockedUntil <= now) {
+    current.attempts = 0;
+    current.lockedUntil = 0;
+  }
+
+  current.attempts = (current.attempts || 0) + 1;
+  const attemptsLeft = Math.max(0, 5 - current.attempts);
+
+  if (current.attempts >= 5) {
+    current.lockedUntil = now + 15 * 60 * 1000; // 15 mins
+    localStorage.setItem(ADMIN_LOCKOUT_KEY, JSON.stringify(current));
+    logActivity('Security Alert', '5 failed login attempts detected. Portal locked for 15 minutes.');
+    return { isLocked: true, attemptsLeft: 0, lockedUntil: current.lockedUntil };
+  }
+
+  localStorage.setItem(ADMIN_LOCKOUT_KEY, JSON.stringify(current));
+  return { isLocked: false, attemptsLeft, lockedUntil: 0 };
+}
+
+export function resetFailedLoginAttempts(): void {
+  localStorage.removeItem(ADMIN_LOCKOUT_KEY);
+}
+
+export function verifyAdminLogin(emailInput: string, passwordInput: string): { success: boolean; message?: string } {
+  const now = Date.now();
+  const lockout = getLockoutStatus();
+
+  if (lockout.lockedUntil && lockout.lockedUntil > now) {
+    const minutesLeft = Math.ceil((lockout.lockedUntil - now) / 60000);
+    return {
+      success: false,
+      message: `অতিরিক্ত ভুল চেষ্টার কারণে প্রবেশপথ সাময়িক লক রয়েছে। আর ${minutesLeft} মিনিট পর চেষ্টা করুন।`,
+    };
+  }
+
+  const creds = getAdminCredentials();
+  const cleanEmail = emailInput.trim().toLowerCase();
+  const targetEmail = creds.email.toLowerCase();
+
+  // Primary owner email or alias check
+  const isEmailMatch =
+    cleanEmail === targetEmail ||
+    (targetEmail === 'ismail543782@gmail.com' && (cleanEmail === 'admin@futurenews.com' || cleanEmail === 'ismail@futurenews.com'));
+  const isPasswordMatch = passwordInput === creds.password;
+
+  if (isEmailMatch && isPasswordMatch) {
+    resetFailedLoginAttempts();
+    setAdminLoggedIn(true);
+    return { success: true };
+  }
+
+  const failure = recordFailedLoginAttempt();
+  if (failure.isLocked) {
+    return {
+      success: false,
+      message: 'ভুল তথ্য! পরপর ৫ বার ভুল চেষ্টার কারণে ১৫ মিনিটের জন্য এডমিন পোর্টাল লক করা হয়েছে।',
+    };
+  }
+
+  return {
+    success: false,
+    message: `ভুল ইমেইল অথবা পাসওয়ার্ড! আপনার আর মাত্র ${failure.attemptsLeft} বার সুযোগ রয়েছে।`,
+  };
+}
+
+export function resetPasswordWithPin(pin: string, newPassword: string): { success: boolean; message: string } {
+  const creds = getAdminCredentials();
+  if (pin.trim() !== creds.recoveryPin) {
+    return { success: false, message: 'ভুল রিকভারি পিন! সঠিক ৬-সংখ্যার পিন প্রদান করুন।' };
+  }
+  if (!newPassword || newPassword.length < 6) {
+    return { success: false, message: 'নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।' };
+  }
+
+  updateAdminCredentials({ password: newPassword });
+  resetFailedLoginAttempts();
+  logActivity('Password Reset', 'Admin password was successfully reset using 6-digit master recovery PIN');
+  return { success: true, message: 'পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! নতুন পাসওয়ার্ড দিয়ে লগইন করুন।' };
+}
+
 export function isAdminLoggedIn(): boolean {
-  return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+  try {
+    const raw = localStorage.getItem(ADMIN_AUTH_KEY);
+    if (!raw) return false;
+    if (raw === 'true') {
+      const newSession = { loggedIn: true, expiresAt: Date.now() + SESSION_DURATION_MS };
+      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(newSession));
+      return true;
+    }
+    const session = JSON.parse(raw);
+    if (!session || !session.loggedIn) return false;
+    if (session.expiresAt && session.expiresAt < Date.now()) {
+      localStorage.removeItem(ADMIN_AUTH_KEY);
+      logActivity('Session Expired', 'Admin session expired automatically for security');
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function setAdminLoggedIn(status: boolean): void {
   if (status) {
-    localStorage.setItem(ADMIN_AUTH_KEY, 'true');
-    logActivity('Admin Login', 'Authorized admin accessed the dashboard');
+    const session = {
+      loggedIn: true,
+      loginTime: new Date().toISOString(),
+      expiresAt: Date.now() + SESSION_DURATION_MS,
+      user: 'Ismail Hossain (Super Admin)',
+    };
+    localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(session));
+    logActivity('Admin Login', 'Authorized admin successfully authenticated');
   } else {
     localStorage.removeItem(ADMIN_AUTH_KEY);
+    logActivity('Admin Logout', 'Admin logged out of the console');
   }
 }
 
@@ -320,7 +498,8 @@ export function getBlogs(): BlogPost[] {
       localStorage.setItem(BLOGS_KEY, JSON.stringify(INITIAL_BLOGS));
       return INITIAL_BLOGS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : INITIAL_BLOGS;
   } catch (e) {
     console.error('Failed to read blogs', e);
     return INITIAL_BLOGS;
@@ -333,13 +512,14 @@ export function saveBlog(blog: BlogPost): void {
   let updated: BlogPost[];
   if (index >= 0) {
     updated = [...blogs];
-    updated[index] = blog;
-    logActivity('Blog Updated', `Updated blog: ${blog.title_bn}`);
+    updated[index] = { ...blog, updated_at: new Date().toISOString() };
+    logActivity('Blog Updated', `Updated blog: ${blog.title_bn || blog.title_en}`);
   } else {
     updated = [blog, ...blogs];
-    logActivity('Blog Created', `Published blog post: ${blog.title_bn}`);
+    logActivity('Blog Created', `Published blog post: ${blog.title_bn || blog.title_en}`);
   }
   localStorage.setItem(BLOGS_KEY, JSON.stringify(updated));
+  notifyDataChange('blogs');
 }
 
 export function deleteBlog(id: string): void {
@@ -348,14 +528,20 @@ export function deleteBlog(id: string): void {
   const filtered = blogs.filter((b) => b.id !== id);
   localStorage.setItem(BLOGS_KEY, JSON.stringify(filtered));
   if (target) {
-    logActivity('Blog Deleted', `Deleted blog: ${target.title_bn}`);
+    logActivity('Blog Deleted', `Deleted blog: ${target.title_bn || target.title_en}`);
   }
+  notifyDataChange('blogs');
 }
 
 export function getBlogBySlug(slug: string): BlogPost | undefined {
+  if (!slug) return undefined;
   const blogs = getBlogs();
-  const decoded = decodeURIComponent(slug).toLowerCase().trim();
-  return blogs.find((b) => b.slug.toLowerCase().trim() === decoded);
+  const decoded = decodeURIComponent(slug).toLowerCase().trim().replace(/^\/+|\/+$/g, '');
+  return blogs.find(
+    (b) =>
+      b.slug.toLowerCase().trim().replace(/^\/+|\/+$/g, '') === decoded ||
+      b.id === decoded
+  );
 }
 
 export function incrementBlogViews(id: string): void {

@@ -15,48 +15,65 @@ import {
 import { AdBanner } from './AdBanner';
 
 interface BlogHubProps {
-  blogs: BlogPost[];
+  blogs?: BlogPost[];
   language: Language;
   onSelectBlog: (slug: string) => void;
   onOpenWriteModal: () => void;
+  onBackToNews?: () => void;
 }
 
 export const BlogHub: React.FC<BlogHubProps> = ({
-  blogs,
+  blogs = [],
   language,
   onSelectBlog,
   onOpenWriteModal,
+  onBackToNews,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const safeBlogs = (blogs || []).filter(Boolean);
+
   const categories = Array.from(
-    new Set(blogs.map((b) => (language === 'bn' ? b.category_name_bn : b.category_name_en)))
+    new Set(
+      safeBlogs
+        .map((b) => (language === 'bn' ? b.category_name_bn : b.category_name_en) || b.category_name_bn || b.category_name_en)
+        .filter(Boolean) as string[]
+    )
   );
 
-  const filteredBlogs = blogs.filter((blog) => {
-    const cat = language === 'bn' ? blog.category_name_bn : blog.category_name_en;
+  const filteredBlogs = safeBlogs.filter((blog) => {
+    const cat = (language === 'bn' ? blog.category_name_bn : blog.category_name_en) || blog.category_name_bn || '';
     const matchesCat = selectedCategory === 'all' || cat === selectedCategory;
+    const query = searchQuery.trim().toLowerCase();
+    const titleBn = (blog.title_bn || '').toLowerCase();
+    const titleEn = (blog.title_en || '').toLowerCase();
+    const summaryBn = (blog.summary_bn || '').toLowerCase();
+    const authorName = (blog.author_name || '').toLowerCase();
+
     const matchesSearch =
-      searchQuery.trim() === '' ||
-      blog.title_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      blog.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      blog.summary_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      blog.author_name.toLowerCase().includes(searchQuery.toLowerCase());
+      query === '' ||
+      titleBn.includes(query) ||
+      titleEn.includes(query) ||
+      summaryBn.includes(query) ||
+      authorName.includes(query);
+
     return matchesCat && matchesSearch;
   });
 
-  const featuredBlog = filteredBlogs[0] || blogs[0];
-  const restBlogs = filteredBlogs.filter((b) => b.id !== featuredBlog?.id);
+  const featuredBlog = filteredBlogs[0] || safeBlogs[0];
+  const restBlogs = filteredBlogs.filter((b) => b && b.id !== featuredBlog?.id);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     try {
+      if (!dateString) return '';
       const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
       return language === 'bn'
         ? d.toLocaleDateString('bn-BD', { month: 'short', day: 'numeric', year: 'numeric' })
         : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
-      return dateString;
+      return dateString || '';
     }
   };
 

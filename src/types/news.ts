@@ -104,6 +104,7 @@ export interface BlogPost {
   status: 'published' | 'pending' | 'draft';
   published_at: string;
   created_at: string;
+  updated_at?: string;
   is_user_submitted?: boolean;
 
   // SEO fields

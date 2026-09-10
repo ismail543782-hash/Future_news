@@ -19,34 +19,49 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onSelect,
   variant = 'grid',
 }) => {
-  const title = language === 'bn' ? article.title_bn : article.title_en;
-  const summary = language === 'bn' ? article.summary_bn : article.summary_en;
+  const title =
+    (language === 'bn' ? article?.title_bn : article?.title_en) ||
+    article?.title_bn ||
+    article?.title_en ||
+    '';
+  const summary =
+    (language === 'bn' ? article?.summary_bn : article?.summary_en) ||
+    article?.summary_bn ||
+    article?.summary_en ||
+    '';
   const catName = category ? (language === 'bn' ? category.name_bn : category.name_en) : '';
   const authorName = author ? (language === 'bn' ? author.name_bn : author.name_en) : 'Staff Reporter';
+  const fallbackImage = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80';
 
   // Format relative time
-  const timeAgo = (dateString: string) => {
-    const diffMs = Date.now() - new Date(dateString).getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours < 1) {
-      const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
-      return language === 'bn' ? `${diffMins} মিনিট আগে` : `${diffMins}m ago`;
+  const timeAgo = (dateString?: string) => {
+    try {
+      if (!dateString) return '';
+      const parsed = new Date(dateString).getTime();
+      if (isNaN(parsed)) return '';
+      const diffMs = Date.now() - parsed;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffHours < 1) {
+        const diffMins = Math.max(1, Math.floor(diffMs / (1000 * 60)));
+        return language === 'bn' ? `${diffMins} মিনিট আগে` : `${diffMins}m ago`;
+      }
+      if (diffHours < 24) {
+        return language === 'bn' ? `${diffHours} ঘণ্টা আগে` : `${diffHours}h ago`;
+      }
+      const days = Math.floor(diffHours / 24);
+      return language === 'bn' ? `${days} দিন আগে` : `${days}d ago`;
+    } catch {
+      return '';
     }
-    if (diffHours < 24) {
-      return language === 'bn' ? `${diffHours} ঘণ্টা আগে` : `${diffHours}h ago`;
-    }
-    const days = Math.floor(diffHours / 24);
-    return language === 'bn' ? `${days} দিন আগে` : `${days}d ago`;
   };
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/news/${article.slug}`;
-    if (navigator.share) {
+    const url = `${window.location.origin}/news/${article?.slug || ''}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({ title, text: summary, url }).catch(() => {});
-    } else {
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(url);
-      alert(language === 'bn' ? 'খবরের লিংক কপি করা হয়েছে!' : 'Article link copied to clipboard!');
     }
   };
 
@@ -57,7 +72,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         className="group flex items-start gap-3 py-3 border-b border-stone-100 last:border-0 cursor-pointer hover:bg-stone-50/60 p-2 rounded transition-colors"
       >
         <img
-          src={article.featured_image}
+          src={article?.featured_image || fallbackImage}
           alt={title}
           className="w-20 h-16 object-cover rounded shrink-0 bg-stone-100"
           loading="lazy"

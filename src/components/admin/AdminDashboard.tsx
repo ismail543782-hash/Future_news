@@ -16,6 +16,7 @@ import { BreakingNewsManager } from './BreakingNewsManager';
 import { NetlifyHostingGuide } from './NetlifyHostingGuide';
 import { AdminBlogManager } from './AdminBlogManager';
 import { AdminSeoCenter } from './AdminSeoCenter';
+import { AdminSecuritySettings } from './AdminSecuritySettings';
 import {
   LayoutDashboard,
   FileText,
@@ -33,6 +34,7 @@ import {
   CheckCircle,
   Clock,
   Shield,
+  ShieldCheck,
   Star,
   PenTool,
   Globe,
@@ -57,7 +59,8 @@ type AdminTab =
   | 'ads'
   | 'breaking'
   | 'comments'
-  | 'netlify';
+  | 'netlify'
+  | 'security';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   articles,
@@ -104,11 +107,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // Filtered articles
-  const filteredArticles = articles.filter((a) => {
+  const filteredArticles = (articles || []).filter((a) => {
+    if (!a) return false;
+    const query = searchFilter.toLowerCase();
+    const titleBn = (a.title_bn || '').toLowerCase();
+    const titleEn = (a.title_en || '').toLowerCase();
+    const slug = (a.slug || '').toLowerCase();
     const matchesSearch =
-      a.title_bn.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      a.title_en.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      a.slug.toLowerCase().includes(searchFilter.toLowerCase());
+      !query ||
+      titleBn.includes(query) ||
+      titleEn.includes(query) ||
+      slug.includes(query);
     const matchesCat = selectedCatFilter === 'all' || a.category_id === selectedCatFilter;
     return matchesSearch && matchesCat;
   });
@@ -333,6 +342,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <Cloud className="w-4 h-4 text-teal-600" />
               <span>Netlify হোস্টিং ও ব্যাকআপ</span>
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-security"
+              onClick={() => {
+                setActiveTab('security');
+                setEditingArticle(null);
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold transition-colors ${
+                activeTab === 'security'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>সিকিউরিটি ও পাসওয়ার্ড</span>
             </button>
           </div>
         </aside>
@@ -625,6 +651,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Netlify Guide & Backup */}
           {activeTab === 'netlify' && !editingArticle && <NetlifyHostingGuide />}
+
+          {/* Security & Access Protection */}
+          {activeTab === 'security' && !editingArticle && (
+            <AdminSecuritySettings onLogout={handleLogout} />
+          )}
         </main>
       </div>
     </div>

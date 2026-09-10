@@ -78,52 +78,68 @@ export function updatePageSeo(article?: Article, lang: 'bn' | 'en' = 'bn'): void
     return;
   }
 
-  const title = lang === 'bn' ? (article.seo_title_bn || article.title_bn) : (article.seo_title_en || article.title_en);
+  const title =
+    (lang === 'bn' ? (article.seo_title_bn || article.title_bn) : (article.seo_title_en || article.title_en)) ||
+    article.title_bn ||
+    article.title_en ||
+    'Future News';
   const description =
-    lang === 'bn'
+    (lang === 'bn'
       ? (article.seo_description_bn || article.summary_bn)
-      : (article.seo_description_en || article.summary_en);
+      : (article.seo_description_en || article.summary_en)) ||
+    article.summary_bn ||
+    article.summary_en ||
+    'Future News Online Portal';
 
   document.title = `${title} - Future News`;
 
   setMetaTag('name', 'description', description);
-  setMetaTag('name', 'keywords', article.tags.join(', '));
+  const keywords = Array.isArray(article.tags) ? article.tags.join(', ') : 'news, bangladesh, future news';
+  setMetaTag('name', 'keywords', keywords);
   setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
-  setMetaTag('property', 'og:image', article.featured_image);
+  setMetaTag('property', 'og:image', article.featured_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80');
   setMetaTag('property', 'og:type', 'article');
   setMetaTag('property', 'og:url', window.location.href);
   setMetaTag('name', 'twitter:card', 'summary_large_image');
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', description);
-  setMetaTag('name', 'twitter:image', article.featured_image);
+  setMetaTag('name', 'twitter:image', article.featured_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80');
 
   setLinkTag('canonical', window.location.href.split('?')[0]);
   injectNewsSchema(article, lang);
 }
 
 export function updateBlogPageSeo(blog: BlogPost, lang: 'bn' | 'en' = 'bn'): void {
-  const title = lang === 'bn' ? (blog.seo_title_bn || blog.title_bn) : (blog.seo_title_en || blog.title_en);
+  const title =
+    (lang === 'bn' ? (blog.seo_title_bn || blog.title_bn) : (blog.seo_title_en || blog.title_en)) ||
+    blog.title_bn ||
+    blog.title_en ||
+    'ফিউচার নিউজ ব্লগ';
   const description =
-    lang === 'bn'
+    (lang === 'bn'
       ? (blog.seo_description_bn || blog.summary_bn)
-      : (blog.seo_description_en || blog.summary_en);
+      : (blog.seo_description_en || blog.summary_en)) ||
+    blog.summary_bn ||
+    blog.summary_en ||
+    'Future News Blog & Gallery';
 
   document.title = `${title} | ফিউচার নিউজ ব্লগ`;
 
   setMetaTag('name', 'description', description);
-  setMetaTag('name', 'keywords', blog.tags.join(', '));
+  const keywords = Array.isArray(blog.tags) ? blog.tags.join(', ') : 'blog, future news, opinions';
+  setMetaTag('name', 'keywords', keywords);
   setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
-  setMetaTag('property', 'og:image', blog.featured_image);
+  setMetaTag('property', 'og:image', blog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80');
   setMetaTag('property', 'og:type', 'article');
   setMetaTag('property', 'og:url', window.location.href);
   setMetaTag('name', 'twitter:card', 'summary_large_image');
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', description);
-  setMetaTag('name', 'twitter:image', blog.featured_image);
+  setMetaTag('name', 'twitter:image', blog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80');
 
   setLinkTag('canonical', window.location.href.split('?')[0]);
   injectBlogSchema(blog, lang);

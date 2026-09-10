@@ -29,24 +29,27 @@ import {
 
 interface BlogDetailProps {
   blog: BlogPost;
-  allBlogs: BlogPost[];
-  initialLanguage: Language;
+  allBlogs?: BlogPost[];
+  initialLanguage?: Language;
+  language?: Language;
   onBack: () => void;
   onSelectBlog: (slug: string) => void;
 }
 
 export const BlogDetail: React.FC<BlogDetailProps> = ({
   blog,
-  allBlogs,
+  allBlogs = [],
   initialLanguage,
+  language,
   onBack,
   onSelectBlog,
 }) => {
-  const [contentLang, setContentLang] = useState<Language>(initialLanguage);
-  const [likes, setLikes] = useState(blog.likes);
+  const effectiveLang: Language = initialLanguage || language || 'bn';
+  const [contentLang, setContentLang] = useState<Language>(effectiveLang);
+  const [likes, setLikes] = useState(blog?.likes || 0);
   const [isLiked, setIsLiked] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [comments, setComments] = useState<Comment[]>(getComments(blog.id));
+  const [comments, setComments] = useState<Comment[]>(blog?.id ? getComments(blog.id) : []);
   const [commentName, setCommentName] = useState('');
   const [commentText, setCommentText] = useState('');
   const [commentSuccess, setCommentSuccess] = useState(false);
@@ -54,26 +57,33 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
 
   // Sync SEO and record view
   useEffect(() => {
-    updateBlogPageSeo(blog, contentLang);
-    incrementBlogViews(blog.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (blog) {
+      updateBlogPageSeo(blog, contentLang);
+      incrementBlogViews(blog.id);
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [blog, contentLang]);
 
   const handleToggleLike = () => {
+    if (!blog?.id) return;
     const newCount = toggleBlogLike(blog.id);
     setLikes(newCount);
     setIsLiked(!isLiked);
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentName.trim() || !commentText.trim()) return;
+    if (!commentName.trim() || !commentText.trim() || !blog?.id) return;
 
     addComment({
       article_id: blog.id,
@@ -90,24 +100,44 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
     setTimeout(() => setCommentSuccess(false), 4000);
   };
 
-  const title = contentLang === 'bn' ? blog.title_bn : blog.title_en;
-  const summary = contentLang === 'bn' ? blog.summary_bn : blog.summary_en;
-  const content = contentLang === 'bn' ? blog.content_bn : blog.content_en;
-  const category = contentLang === 'bn' ? blog.category_name_bn : blog.category_name_en;
-  const caption = contentLang === 'bn' ? blog.image_caption_bn : blog.image_caption_en;
+  const title =
+    (contentLang === 'bn' ? blog?.title_bn : blog?.title_en) ||
+    blog?.title_bn ||
+    blog?.title_en ||
+    '';
+  const summary =
+    (contentLang === 'bn' ? blog?.summary_bn : blog?.summary_en) ||
+    blog?.summary_bn ||
+    blog?.summary_en ||
+    '';
+  const content =
+    (contentLang === 'bn' ? blog?.content_bn : blog?.content_en) ||
+    blog?.content_bn ||
+    blog?.content_en ||
+    '';
+  const category =
+    (contentLang === 'bn' ? blog?.category_name_bn : blog?.category_name_en) ||
+    blog?.category_name_bn ||
+    '';
+  const caption =
+    (contentLang === 'bn' ? blog?.image_caption_bn : blog?.image_caption_en) ||
+    blog?.image_caption_bn ||
+    '';
 
-  const relatedBlogs = allBlogs
-    .filter((b) => b.id !== blog.id)
+  const relatedBlogs = (allBlogs || [])
+    .filter((b) => b && b.id !== blog?.id)
     .slice(0, 3);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     try {
+      if (!dateString) return '';
       const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
       return contentLang === 'bn'
         ? d.toLocaleDateString('bn-BD', { month: 'long', day: 'numeric', year: 'numeric' })
         : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     } catch {
-      return dateString;
+      return dateString || '';
     }
   };
 
@@ -249,10 +279,11 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
           {/* Featured Hero Photo */}
           <div className="relative w-full bg-stone-900">
             <img
-              src={blog.featured_image}
+              src={blog?.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80'}
               alt={title}
               className="w-full max-h-[500px] object-cover cursor-pointer"
-              onClick={() => setSelectedPhoto(blog.featured_image)}
+              onClick={() => setSelectedPhoto(blog?.featured_image || null)}
+              referrerPolicy="no-referrer"
             />
             {caption && (
               <div className="p-3 bg-stone-900/90 text-stone-300 text-xs flex items-center justify-between">
@@ -269,11 +300,15 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
 
           {/* Main Body Text */}
           <div className="p-6 sm:p-10 space-y-6 text-stone-800 leading-relaxed text-sm sm:text-base font-sans">
-            {content.split('\n\n').map((para, i) => (
-              <p key={i} className="leading-relaxed">
-                {para}
-              </p>
-            ))}
+            {(content || '')
+              .split(/\n+/)
+              .map((p) => p.trim())
+              .filter(Boolean)
+              .map((para, i) => (
+                <p key={i} className="leading-relaxed">
+                  {para}
+                </p>
+              ))}
           </div>
 
           {/* Attached Additional Photo Gallery (Multi-photo Story) */}
