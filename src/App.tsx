@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Article, Category, Author, BreakingNews, Language, BlogPost } from './types/news';
+import { Article, Category, Author, BreakingNews, Language, BlogPost, Book } from './types/news';
 import {
   getArticles,
   getCategories,
@@ -9,6 +9,9 @@ import {
   getArticleBySlug,
   getBlogs,
   getBlogBySlug,
+  getBooks,
+  getBookBySlug,
+  saveBook,
 } from './utils/storage';
 import { updatePageSeo, updateBlogPageSeo } from './utils/seo';
 
@@ -22,12 +25,16 @@ import { NewsDetail } from './components/NewsDetail';
 import { BlogHub } from './components/BlogHub';
 import { BlogDetail } from './components/BlogDetail';
 import { BlogWriteModal } from './components/BlogWriteModal';
+import { BookHub } from './components/BookHub';
+import { BookDetail } from './components/BookDetail';
+import { BookReader } from './components/BookReader';
+import { BookEditor } from './components/admin/BookEditor';
 import { AdBanner } from './components/AdBanner';
 import { StickyBottomAd } from './components/StickyBottomAd';
 import { Footer } from './components/Footer';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { Sparkles, TrendingUp, Layers, Newspaper, RefreshCw, PenTool, ArrowRight } from 'lucide-react';
+import { Sparkles, TrendingUp, Layers, Newspaper, RefreshCw, PenTool, ArrowRight, BookOpen, Download } from 'lucide-react';
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -35,13 +42,19 @@ export default function App() {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [breakingNews, setBreakingNews] = useState<BreakingNews[]>([]);
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [language, setLanguage] = useState<Language>('bn');
 
   // Navigation and Routing state
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [selectedBlogSlug, setSelectedBlogSlug] = useState<string | null>(null);
+  const [selectedBookSlug, setSelectedBookSlug] = useState<string | null>(null);
+  const [readingBookSlug, setReadingBookSlug] = useState<string | null>(null);
+  const [readingPageNum, setReadingPageNum] = useState<number>(1);
   const [inBlogHubView, setInBlogHubView] = useState(false);
+  const [inBookHubView, setInBookHubView] = useState(false);
   const [showWriteBlogModal, setShowWriteBlogModal] = useState(false);
+  const [showBookPublishModal, setShowBookPublishModal] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [inAdminView, setInAdminView] = useState(false);
@@ -55,37 +68,75 @@ export default function App() {
     const auths = getAuthors();
     const brks = getBreakingNews();
     const blgs = getBlogs();
+    const bks = getBooks();
     setArticles(arts);
     setCategories(cats);
     setAuthors(auths);
     setBreakingNews(brks);
     setBlogs(blgs);
+    setBooks(bks);
     setIsAdmin(isAdminLoggedIn());
   }, []);
 
   useEffect(() => {
     loadData();
 
-    // Check if initial URL points to a specific article, blog, or admin route
+    // Check if initial URL points to a specific article, blog, book, or admin route
     const path = window.location.pathname;
     if (path.startsWith('/news/')) {
       const slugFromUrl = path.replace('/news/', '').trim();
       if (slugFromUrl) {
         setSelectedSlug(slugFromUrl);
         setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInBlogHubView(false);
+        setInBookHubView(false);
       }
     } else if (path.startsWith('/blog/')) {
       const blogSlug = path.replace('/blog/', '').trim();
       if (blogSlug) {
         setSelectedBlogSlug(blogSlug);
         setSelectedSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInBlogHubView(false);
+        setInBookHubView(false);
+      }
+    } else if (path.startsWith('/book/')) {
+      const bookSlug = path.replace('/book/', '').trim();
+      if (bookSlug) {
+        setSelectedBookSlug(bookSlug);
+        setSelectedSlug(null);
+        setSelectedBlogSlug(null);
+        setReadingBookSlug(null);
+        setInBlogHubView(false);
+        setInBookHubView(false);
+      }
+    } else if (path.startsWith('/read/')) {
+      const bookSlug = path.replace('/read/', '').trim();
+      if (bookSlug) {
+        setReadingBookSlug(bookSlug);
+        setSelectedSlug(null);
+        setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setInBlogHubView(false);
+        setInBookHubView(false);
       }
     } else if (path === '/blog') {
       setInBlogHubView(true);
+      setInBookHubView(false);
       setSelectedSlug(null);
       setSelectedBlogSlug(null);
+      setSelectedBookSlug(null);
+      setReadingBookSlug(null);
+    } else if (path === '/books' || path === '/book') {
+      setInBookHubView(true);
+      setInBlogHubView(false);
+      setSelectedSlug(null);
+      setSelectedBlogSlug(null);
+      setSelectedBookSlug(null);
+      setReadingBookSlug(null);
     } else if (path === '/admin') {
       if (isAdminLoggedIn()) {
         setIsAdmin(true);
@@ -104,18 +155,53 @@ export default function App() {
         const slug = currentPath.replace('/news/', '').trim();
         setSelectedSlug(slug);
         setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInBlogHubView(false);
+        setInBookHubView(false);
         setInAdminView(false);
       } else if (currentPath.startsWith('/blog/')) {
         const slug = currentPath.replace('/blog/', '').trim();
         setSelectedBlogSlug(slug);
         setSelectedSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInBlogHubView(false);
+        setInBookHubView(false);
+        setInAdminView(false);
+      } else if (currentPath.startsWith('/book/')) {
+        const slug = currentPath.replace('/book/', '').trim();
+        setSelectedBookSlug(slug);
+        setSelectedSlug(null);
+        setSelectedBlogSlug(null);
+        setReadingBookSlug(null);
+        setInBlogHubView(false);
+        setInBookHubView(false);
+        setInAdminView(false);
+      } else if (currentPath.startsWith('/read/')) {
+        const slug = currentPath.replace('/read/', '').trim();
+        setReadingBookSlug(slug);
+        setSelectedSlug(null);
+        setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setInBlogHubView(false);
+        setInBookHubView(false);
         setInAdminView(false);
       } else if (currentPath === '/blog') {
         setInBlogHubView(true);
+        setInBookHubView(false);
         setSelectedSlug(null);
         setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
+        setInAdminView(false);
+      } else if (currentPath === '/books' || currentPath === '/book') {
+        setInBookHubView(true);
+        setInBlogHubView(false);
+        setSelectedSlug(null);
+        setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInAdminView(false);
       } else if (currentPath === '/admin') {
         if (isAdminLoggedIn()) {
@@ -129,7 +215,10 @@ export default function App() {
       } else {
         setSelectedSlug(null);
         setSelectedBlogSlug(null);
+        setSelectedBookSlug(null);
+        setReadingBookSlug(null);
         setInBlogHubView(false);
+        setInBookHubView(false);
         setInAdminView(false);
       }
       loadData();
@@ -155,7 +244,10 @@ export default function App() {
   const handleSelectArticle = (slug: string) => {
     setSelectedSlug(slug);
     setSelectedBlogSlug(null);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
     setInBlogHubView(false);
+    setInBookHubView(false);
     setInAdminView(false);
     window.history.pushState({}, '', `/news/${slug}`);
   };
@@ -164,15 +256,63 @@ export default function App() {
   const handleSelectBlog = (slug: string) => {
     setSelectedBlogSlug(slug);
     setSelectedSlug(null);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
     setInBlogHubView(false);
+    setInBookHubView(false);
     setInAdminView(false);
     window.history.pushState({}, '', `/blog/${slug}`);
+  };
+
+  // Handle unique book URL navigation
+  const handleSelectBook = (slug: string) => {
+    loadData();
+    setSelectedBookSlug(slug);
+    setReadingBookSlug(null);
+    setSelectedSlug(null);
+    setSelectedBlogSlug(null);
+    setInBlogHubView(false);
+    setInBookHubView(false);
+    setInAdminView(false);
+    window.history.pushState({}, '', `/book/${slug}`);
+  };
+
+  // Handle Start Reading Book (Interactive Page by Page)
+  const handleStartReading = (slug: string, pageNum = 1) => {
+    loadData();
+    setReadingBookSlug(slug);
+    setReadingPageNum(pageNum);
+    setSelectedBookSlug(null);
+    setSelectedSlug(null);
+    setSelectedBlogSlug(null);
+    setInBlogHubView(false);
+    setInBookHubView(false);
+    setInAdminView(false);
+    window.history.pushState({}, '', `/read/${slug}`);
+  };
+
+  // Handle Opening Book Hub / E-Library
+  const handleOpenBookHub = () => {
+    loadData();
+    setInBookHubView(true);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
+    setInBlogHubView(false);
+    setSelectedBlogSlug(null);
+    setSelectedSlug(null);
+    setInAdminView(false);
+    setActiveCategory(null);
+    setSearchQuery('');
+    window.history.pushState({}, '', '/books');
   };
 
   // Handle Opening Blog Hub Feed
   const handleOpenBlogHub = () => {
     loadData();
     setInBlogHubView(true);
+    setInBookHubView(false);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
     setSelectedBlogSlug(null);
     setSelectedSlug(null);
     setInAdminView(false);
@@ -186,7 +326,10 @@ export default function App() {
     loadData();
     setSelectedSlug(null);
     setSelectedBlogSlug(null);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
     setInBlogHubView(false);
+    setInBookHubView(false);
     setActiveCategory(null);
     setSearchQuery('');
     setInAdminView(false);
@@ -200,7 +343,10 @@ export default function App() {
       setInAdminView(true);
       setSelectedSlug(null);
       setSelectedBlogSlug(null);
+      setSelectedBookSlug(null);
+      setReadingBookSlug(null);
       setInBlogHubView(false);
+      setInBookHubView(false);
       window.history.pushState({}, '', '/admin');
     } else {
       setShowLoginModal(true);
@@ -213,7 +359,10 @@ export default function App() {
     setInAdminView(true);
     setSelectedSlug(null);
     setSelectedBlogSlug(null);
+    setSelectedBookSlug(null);
+    setReadingBookSlug(null);
     setInBlogHubView(false);
+    setInBookHubView(false);
     window.history.pushState({}, '', '/admin');
   };
 
@@ -249,9 +398,11 @@ export default function App() {
     .filter((a) => a && a.id !== leadArticle?.id)
     .slice(0, 3);
 
-  // If a single news article or blog is selected, pick entity
+  // If a single news article, blog, or book is selected, pick entity
   const selectedArticle = selectedSlug ? getArticleBySlug(selectedSlug) : null;
   const selectedBlog = selectedBlogSlug ? getBlogBySlug(selectedBlogSlug) : null;
+  const selectedBook = selectedBookSlug ? getBookBySlug(selectedBookSlug) : null;
+  const selectedReadingBook = readingBookSlug ? getBookBySlug(readingBookSlug) : null;
 
   // View: Admin Dashboard
   if (inAdminView && isAdmin) {
@@ -265,6 +416,7 @@ export default function App() {
           onExitAdmin={handleGoHome}
           onSelectArticle={handleSelectArticle}
           onSelectBlog={handleSelectBlog}
+          onSelectBook={handleSelectBook}
         />
       </ErrorBoundary>
     );
@@ -282,7 +434,10 @@ export default function App() {
             setActiveCategory(catId);
             setSelectedSlug(null);
             setSelectedBlogSlug(null);
+            setSelectedBookSlug(null);
+            setReadingBookSlug(null);
             setInBlogHubView(false);
+            setInBookHubView(false);
             setSearchQuery('');
             window.history.pushState({}, '', '/');
           }}
@@ -295,6 +450,8 @@ export default function App() {
           onGoHome={handleGoHome}
           isBlogHubActive={inBlogHubView || !!selectedBlogSlug}
           onOpenBlogHub={handleOpenBlogHub}
+          isBookHubActive={inBookHubView || !!selectedBookSlug || !!readingBookSlug}
+          onOpenBookHub={handleOpenBookHub}
           onOpenWriteBlog={() => setShowWriteBlogModal(true)}
         />
 
@@ -307,8 +464,86 @@ export default function App() {
 
         {/* Main Content Area */}
         <div className="flex-1 w-full overflow-y-visible">
-          {/* Single Blog Detail Reader */}
-          {selectedBlogSlug ? (
+          {/* Active Book Reader (Interactive Page-by-Page) */}
+          {readingBookSlug ? (
+            selectedReadingBook ? (
+              <BookReader
+                book={selectedReadingBook}
+                initialPage={readingPageNum}
+                language={language}
+                onClose={() => handleSelectBook(selectedReadingBook.slug)}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full mx-auto flex items-center justify-center">
+                  <BookOpen className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-900">
+                  {language === 'bn' ? 'বইটি খুঁজে পাওয়া যায়নি' : 'Book Not Found'}
+                </h2>
+                <p className="text-stone-600 text-sm">
+                  {language === 'bn'
+                    ? 'যে বইটি পড়তে চাইছেন তা হয়তো সরানো হয়েছে অথবা লিংকটি ভুল।'
+                    : 'The book you are looking for has been removed or moved.'}
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenBookHub}
+                    className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <span>{language === 'bn' ? 'সকল বই দেখুন' : 'Browse All Books'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ) : selectedBookSlug ? (
+            selectedBook ? (
+              <BookDetail
+                book={selectedBook}
+                allBooks={books}
+                language={language}
+                onOpenReader={(slug, page) => handleStartReading(slug, page)}
+                onBack={handleOpenBookHub}
+                onSelectOtherBook={handleSelectBook}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full mx-auto flex items-center justify-center">
+                  <BookOpen className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-900">
+                  {language === 'bn' ? 'বইটি খুঁজে পাওয়া যায়নি' : 'Book Not Found'}
+                </h2>
+                <p className="text-stone-600 text-sm">
+                  {language === 'bn'
+                    ? 'যে বইটি খুঁজছেন তা আর পাওয়া যাচ্ছে না।'
+                    : 'The book you are looking for cannot be located.'}
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenBookHub}
+                    className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                  >
+                    <span>{language === 'bn' ? 'সকল বই দেখুন' : 'Browse All Books'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )
+          ) : inBookHubView ? (
+            /* Public Book Hub & E-Library Catalog */
+            <BookHub
+              books={books}
+              language={language}
+              onSelectBook={handleSelectBook}
+              onOpenReader={(slug) => handleStartReading(slug, 1)}
+              onOpenAdminUpload={isAdmin ? () => setShowBookPublishModal(true) : undefined}
+              onBackToNews={handleGoHome}
+            />
+          ) : selectedBlogSlug ? (
             selectedBlog ? (
               <BlogDetail
                 blog={selectedBlog}
@@ -614,6 +849,79 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            {/* E-Library & Free Digital Books Strip */}
+            {books.length > 0 && (
+              <div className="my-10 p-6 bg-gradient-to-r from-amber-950 via-stone-900 to-stone-950 rounded-2xl text-white shadow-md border border-amber-900/40">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-amber-800/40">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                      <BookOpen className="w-4 h-4 text-amber-400" />
+                      <span>{language === 'bn' ? 'অনলাইন ই-লাইব্রেরি ও ফ্রি পিডিএফ' : 'Online E-Library & Free PDF Books'}</span>
+                    </div>
+                    <h3 className="text-xl font-bold tracking-tight">
+                      {language === 'bn' ? 'বই পড়ুন ও সংগ্রহ করুন' : 'Read Books & Download PDFs'}
+                    </h3>
+                    <p className="text-xs text-stone-300">
+                      {language === 'bn'
+                        ? 'ক্যারিয়ার, ইতিহাস, সাহিত্য ও মোটিভেশনাল বই অনলাইনে অধ্যায়ভিত্তিক পড়ুন অথবা পিডিএফ ডাউনলোড করুন।'
+                        : 'Explore educational, motivational, and literary books online with digital page-turning reader.'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleOpenBookHub}
+                      className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-xs"
+                    >
+                      <span>{language === 'bn' ? 'সকল বই দেখুন' : 'Explore Library'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Book Card Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  {books.slice(0, 4).map((bk) => (
+                    <div
+                      key={bk.id}
+                      onClick={() => handleSelectBook(bk.slug)}
+                      className="group cursor-pointer bg-white/5 hover:bg-white/10 rounded-xl p-3 border border-white/10 transition-all flex gap-3 items-center"
+                    >
+                      <img
+                        src={bk.cover_image}
+                        alt={bk.title}
+                        className="w-14 h-20 rounded-lg object-cover shrink-0 group-hover:scale-105 transition-transform shadow-xs"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-bold text-amber-400 uppercase block mb-0.5 truncate">
+                          {bk.category_bn}
+                        </span>
+                        <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2 leading-snug">
+                          {bk.title}
+                        </h4>
+                        <p className="text-[11px] text-stone-400 mt-1 truncate">{bk.author}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-stone-400 mt-1">
+                          <span>{bk.total_pages} পৃষ্ঠা</span>
+                          {bk.pdf_url && (
+                            <span className="text-emerald-400 flex items-center gap-0.5">
+                              <Download className="w-2.5 h-2.5" /> PDF
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Homepage Bottom Monetization Banner */}
+            <div className="my-8">
+              <AdBanner slot="bottom_banner" />
+            </div>
           </main>
         )}
       </div>
@@ -629,11 +937,15 @@ export default function App() {
           setActiveCategory(catId);
           setSelectedSlug(null);
           setSelectedBlogSlug(null);
+          setSelectedBookSlug(null);
+          setReadingBookSlug(null);
           setInBlogHubView(false);
+          setInBookHubView(false);
         }}
         onOpenAdmin={handleOpenAdmin}
         isAdmin={isAdmin}
         onOpenBlogHub={handleOpenBlogHub}
+        onOpenBookHub={handleOpenBookHub}
       />
 
       {/* Write Blog Modal */}
@@ -646,6 +958,20 @@ export default function App() {
           handleSelectBlog(newBlog.slug);
         }}
       />
+
+      {/* Book Publish Modal for Admin */}
+      {showBookPublishModal && (
+        <BookEditor
+          language={language}
+          onSave={(savedBook) => {
+            saveBook(savedBook);
+            loadData();
+            setShowBookPublishModal(false);
+            handleSelectBook(savedBook.slug);
+          }}
+          onCancel={() => setShowBookPublishModal(false)}
+        />
+      )}
 
         {/* Admin Login Modal Gate */}
         <AdminLoginModal

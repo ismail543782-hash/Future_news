@@ -1,5 +1,6 @@
-import { Article, BreakingNews, Advertisement, Comment, Category, Author, ActivityLog, BlogPost, CountryEdition, PageViewRecord, AdSenseSettings } from '../types/news';
+import { Article, BreakingNews, Advertisement, Comment, Category, Author, ActivityLog, BlogPost, CountryEdition, PageViewRecord, AdSenseSettings, Book } from '../types/news';
 import { INITIAL_ARTICLES, INITIAL_BREAKING_NEWS, INITIAL_ADS, INITIAL_CATEGORIES, INITIAL_AUTHORS, INITIAL_BLOGS, INITIAL_EDITIONS } from '../data/initialData';
+import { INITIAL_BOOKS } from '../data/initialBooks';
 
 const ARTICLES_KEY = 'fn_articles_v1';
 const BREAKING_KEY = 'fn_breaking_v1';
@@ -12,6 +13,7 @@ const ADMIN_AUTH_KEY = 'fn_admin_session_v1';
 const ADMIN_CREDS_KEY = 'fn_admin_creds_v1';
 const ADMIN_LOCKOUT_KEY = 'fn_admin_lockout_v1';
 const BLOGS_KEY = 'fn_blogs_v1';
+const BOOKS_KEY = 'fn_books_v1';
 const EDITION_KEY = 'fn_current_edition_v1';
 const PAGEVIEWS_KEY = 'fn_pageviews_history_v2';
 const ADSENSE_KEY = 'fn_adsense_settings_v1';
@@ -928,4 +930,79 @@ export function getRealAnalyticsData(): RealAnalyticsData {
       calculatedRevenueUsd,
     },
   };
+}
+
+// ----------------------------------------------------------------------------
+// 📚 Books / E-Library Storage & Publishing Engine
+// ----------------------------------------------------------------------------
+export function getBooks(): Book[] {
+  try {
+    const raw = localStorage.getItem(BOOKS_KEY);
+    if (!raw) {
+      localStorage.setItem(BOOKS_KEY, JSON.stringify(INITIAL_BOOKS));
+      return INITIAL_BOOKS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_BOOKS;
+  } catch {
+    return INITIAL_BOOKS;
+  }
+}
+
+export function getBookBySlug(slug: string): Book | undefined {
+  const books = getBooks();
+  return books.find((b) => b.slug === slug);
+}
+
+export function getBookById(id: string): Book | undefined {
+  const books = getBooks();
+  return books.find((b) => b.id === id);
+}
+
+export function saveBook(book: Book): void {
+  const books = getBooks();
+  const index = books.findIndex((b) => b.id === book.id);
+  let updated: Book[];
+  if (index >= 0) {
+    updated = [...books];
+    updated[index] = { ...book, updated_at: new Date().toISOString() };
+  } else {
+    updated = [{ ...book, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, ...books];
+  }
+  localStorage.setItem(BOOKS_KEY, JSON.stringify(updated));
+  logActivity('Book Saved', `বই প্রকাশ/আপডেট করা হয়েছে: ${book.title}`);
+}
+
+export function deleteBook(id: string): void {
+  const books = getBooks();
+  const book = books.find((b) => b.id === id);
+  const updated = books.filter((b) => b.id !== id);
+  localStorage.setItem(BOOKS_KEY, JSON.stringify(updated));
+  logActivity('Book Deleted', `বই মুছে ফেলা হয়েছে: ${book?.title || id}`);
+}
+
+export function incrementBookViews(id: string): void {
+  const books = getBooks();
+  const index = books.findIndex((b) => b.id === id);
+  if (index >= 0) {
+    books[index].views_count = (books[index].views_count || 0) + 1;
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+  }
+}
+
+export function saveBookProgress(bookId: string, pageNumber: number): void {
+  try {
+    localStorage.setItem(`fn_book_progress_${bookId}`, String(pageNumber));
+  } catch {
+    // ignore
+  }
+}
+
+export function getBookProgress(bookId: string): number {
+  try {
+    const val = localStorage.getItem(`fn_book_progress_${bookId}`);
+    return val ? parseInt(val, 10) || 1 : 1;
+  } catch {
+    return 1;
+  }
 }

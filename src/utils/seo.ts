@@ -1,4 +1,4 @@
-import { Article, BlogPost } from '../types/news';
+import { Article, BlogPost, Book } from '../types/news';
 
 export function generateSlug(text: string): string {
   if (!text) return `post-${Date.now()}`;
@@ -285,7 +285,11 @@ function injectWebSiteSchema(lang: 'bn' | 'en'): void {
   document.head.appendChild(script);
 }
 
-export function generateDynamicSitemapXml(articles: Article[], blogs: BlogPost[]): string {
+export function generateDynamicSitemapXml(
+  articles: Article[],
+  blogs: BlogPost[],
+  books: Book[] = []
+): string {
   const origin = window.location.origin || 'https://futurenews.netlify.app';
   const today = new Date().toISOString().split('T')[0];
 
@@ -307,6 +311,14 @@ export function generateDynamicSitemapXml(articles: Article[], blogs: BlogPost[]
   <!-- Blogs Hub -->
   <url>
     <loc>${origin}/blogs</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Books & Digital E-Library Hub -->
+  <url>
+    <loc>${origin}/books</loc>
     <lastmod>${today}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
@@ -341,6 +353,24 @@ export function generateDynamicSitemapXml(articles: Article[], blogs: BlogPost[]
     <loc>${origin}/blog/${blog.slug}</loc>
     <lastmod>${modDate}</lastmod>
     <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+  });
+
+  // Add all published books
+  books.filter((b) => b.is_published).forEach((book) => {
+    const modDate = (book.created_at || today).split('T')[0];
+    xml += `
+  <url>
+    <loc>${origin}/book/${book.slug}</loc>
+    <lastmod>${modDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>${origin}/read/${book.slug}</loc>
+    <lastmod>${modDate}</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`;
   });

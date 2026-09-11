@@ -437,19 +437,10 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
               </div>
             </div>
 
-            {/* Article Content Paragraphs with In-Article Ad Placement */}
+            {/* Article Content Paragraphs (Clean & Uninterrupted for Reader Comfort) */}
             <div className="font-serif text-stone-900 text-lg sm:text-xl leading-relaxed space-y-6">
               {paragraphs.map((p, idx) => (
-                <React.Fragment key={idx}>
-                  <p className="text-stone-800 tracking-normal">{p}</p>
-
-                  {/* Insert In-Article Monetization Ad after the 2nd paragraph */}
-                  {idx === 1 && (
-                    <div className="my-8 not-serif">
-                      <AdBanner slot="in_article" />
-                    </div>
-                  )}
-                </React.Fragment>
+                <p key={idx} className="text-stone-800 tracking-normal">{p}</p>
               ))}
             </div>
 
@@ -492,6 +483,11 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Monetization Ad: Bottom Content / Pre-Comments Banner */}
+            <div className="my-8">
+              <AdBanner slot="bottom_banner" />
+            </div>
 
             {/* Comments Section */}
             <div className="mt-10 pt-8 border-t border-stone-200">

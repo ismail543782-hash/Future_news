@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Article, Category, Author, Comment, BlogPost } from '../../types/news';
+import { Article, Category, Author, Comment, BlogPost, Book } from '../../types/news';
 import {
   saveArticle,
   deleteArticle,
@@ -8,6 +8,9 @@ import {
   updateCommentStatus,
   deleteComment,
   getBlogs,
+  getBooks,
+  saveBook,
+  deleteBook,
 } from '../../utils/storage';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { ArticleEditor } from './ArticleEditor';
@@ -17,6 +20,7 @@ import { NetlifyHostingGuide } from './NetlifyHostingGuide';
 import { AdminBlogManager } from './AdminBlogManager';
 import { AdminSeoCenter } from './AdminSeoCenter';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
+import { AdminBookManager } from './AdminBookManager';
 import {
   LayoutDashboard,
   FileText,
@@ -38,6 +42,7 @@ import {
   Star,
   PenTool,
   Globe,
+  BookOpen,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -48,6 +53,7 @@ interface AdminDashboardProps {
   onExitAdmin: () => void;
   onSelectArticle: (slug: string) => void;
   onSelectBlog?: (slug: string) => void;
+  onSelectBook?: (slug: string) => void;
 }
 
 type AdminTab =
@@ -55,6 +61,7 @@ type AdminTab =
   | 'articles'
   | 'new_article'
   | 'blogs'
+  | 'books'
   | 'seo'
   | 'ads'
   | 'breaking'
@@ -70,12 +77,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onExitAdmin,
   onSelectArticle,
   onSelectBlog,
+  onSelectBook,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('analytics');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCatFilter, setSelectedCatFilter] = useState<string>('all');
   const [comments, setComments] = useState<Comment[]>(getComments());
+  const [books, setBooks] = useState<Book[]>(getBooks());
 
   const handleLogout = () => {
     setAdminLoggedIn(false);
@@ -255,6 +264,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <PenTool className="w-4 h-4 text-purple-600" />
               <span>ব্লগ ও আলোকচিত্র হাব</span>
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-books"
+              onClick={() => {
+                setActiveTab('books');
+                setEditingArticle(null);
+                setBooks(getBooks());
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold transition-colors ${
+                activeTab === 'books'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-stone-700 hover:bg-stone-100'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <span>বই ও ই-লাইব্রেরি (PDF ও SEO)</span>
             </button>
 
             <button
@@ -644,11 +671,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
+          {/* Book Publishing & PDF E-Library Manager */}
+          {activeTab === 'books' && !editingArticle && (
+            <AdminBookManager
+              books={books}
+              language="bn"
+              onSaveBook={(saved) => {
+                saveBook(saved);
+                setBooks(getBooks());
+                onRefreshData();
+              }}
+              onDeleteBook={(id) => {
+                deleteBook(id);
+                setBooks(getBooks());
+                onRefreshData();
+              }}
+              onPreviewBook={(slug) => {
+                if (onSelectBook) onSelectBook(slug);
+              }}
+            />
+          )}
+
           {/* Google Search & SEO Center */}
           {activeTab === 'seo' && !editingArticle && (
             <AdminSeoCenter
               articles={articles}
               blogs={getBlogs()}
+              books={books}
             />
           )}
 

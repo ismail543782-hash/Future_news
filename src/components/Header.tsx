@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Language, CountryEdition } from '../types/news';
-import { Search, Globe, Shield, Lock, Menu, X, Flame, PenTool, Sparkles } from 'lucide-react';
+import { Search, Globe, Shield, Lock, Menu, X, Flame, PenTool, Sparkles, BookOpen } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { CountryEditionSelector } from './CountryEditionSelector';
 
@@ -17,6 +17,8 @@ interface HeaderProps {
   onGoHome: () => void;
   isBlogHubActive?: boolean;
   onOpenBlogHub?: () => void;
+  isBookHubActive?: boolean;
+  onOpenBookHub?: () => void;
   onOpenWriteBlog?: () => void;
   onEditionChange?: (edition: CountryEdition) => void;
 }
@@ -34,6 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   onGoHome,
   isBlogHubActive,
   onOpenBlogHub,
+  isBookHubActive,
+  onOpenBookHub,
   onOpenWriteBlog,
   onEditionChange,
 }) => {
@@ -127,28 +131,23 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            {/* Admin Panel Access Button */}
+            {/* Admin Panel Access Button - Discreet Lock Icon Only */}
             <button
               type="button"
               id="header-admin-btn"
               onClick={onOpenAdmin}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all ${
+              className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${
                 isAdmin
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-400/40'
-                  : 'bg-stone-800 text-stone-300 hover:bg-stone-700 hover:text-white'
+                  ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 ring-1 ring-emerald-500/40'
+                  : 'text-stone-400 hover:text-white hover:bg-stone-800'
               }`}
-              title={language === 'bn' ? 'এডমিন ড্যাশবোর্ড ও প্রকাশনা' : 'Admin Panel & Publisher'}
+              title="Secure Login"
+              aria-label="Secure Access"
             >
               {isAdmin ? (
-                <>
-                  <Shield className="w-3.5 h-3.5 text-emerald-300" />
-                  <span className="hidden sm:inline">এডমিন ড্যাশবোর্ড</span>
-                </>
+                <Shield className="w-4 h-4 text-emerald-400" />
               ) : (
-                <>
-                  <Lock className="w-3.5 h-3.5 text-stone-400" />
-                  <span className="hidden sm:inline">এডমিন</span>
-                </>
+                <Lock className="w-4 h-4 text-stone-300" />
               )}
             </button>
           </div>
@@ -235,13 +234,33 @@ export const Header: React.FC<HeaderProps> = ({
                 id="cat-all-btn"
                 onClick={() => onSelectCategory(null)}
                 className={`px-3 py-2 text-sm font-semibold whitespace-nowrap rounded-md transition-colors ${
-                  activeCategory === null && !isBlogHubActive
+                  activeCategory === null && !isBlogHubActive && !isBookHubActive
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-stone-700 hover:text-rose-600 hover:bg-stone-100'
                 }`}
               >
                 {language === 'bn' ? 'সব খবর' : 'All News'}
               </button>
+
+              {/* Dedicated Book Hub Navigation Tab */}
+              {onOpenBookHub && (
+                <button
+                  type="button"
+                  id="nav-btn-book-hub"
+                  onClick={onOpenBookHub}
+                  className={`px-3 py-2 text-sm font-bold whitespace-nowrap rounded-md transition-all flex items-center gap-1.5 ${
+                    isBookHubActive
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'text-amber-800 hover:text-amber-900 hover:bg-amber-50'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? 'বই ও ই-লাইব্রেরি' : 'Books & E-Library'}</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                    PDF
+                  </span>
+                </button>
+              )}
 
               {/* Dedicated Blog Hub Navigation Tab */}
               {onOpenBlogHub && (
@@ -318,11 +337,32 @@ export const Header: React.FC<HeaderProps> = ({
                   setMobileMenuOpen(false);
                 }}
                 className={`text-left px-3 py-2 rounded text-sm font-medium ${
-                  activeCategory === null && !isBlogHubActive ? 'bg-rose-600 text-white' : 'text-stone-700'
+                  activeCategory === null && !isBlogHubActive && !isBookHubActive ? 'bg-rose-600 text-white' : 'text-stone-700'
                 }`}
               >
                 {language === 'bn' ? 'সব খবর' : 'All News'}
               </button>
+
+              {onOpenBookHub && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenBookHub();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`text-left px-3 py-2 rounded text-sm font-bold flex items-center justify-between ${
+                    isBookHubActive ? 'bg-amber-600 text-white' : 'text-amber-800 bg-amber-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>{language === 'bn' ? 'বই ও ই-লাইব্রেরি (PDF)' : 'Books & E-Library (PDF)'}</span>
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/80 text-amber-900 font-bold">
+                    E-Book
+                  </span>
+                </button>
+              )}
 
               {onOpenBlogHub && (
                 <button

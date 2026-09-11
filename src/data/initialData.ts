@@ -325,37 +325,29 @@ export const INITIAL_ADS: Advertisement[] = [
   },
   {
     id: 'ad-article',
-    title: 'খবরের ভেতরের বিজ্ঞাপন (In-Article Responsive)',
+    title: 'খবরের ভেতরের বিজ্ঞাপন (নিষ্ক্রিয়)',
     slot: 'in_article',
-    type: 'custom_banner',
-    image_url: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&auto=format&fit=crop&q=80',
-    target_url: 'https://workspace.google.com',
-    sponsor_name: 'Enterprise Productivity Suite',
-    code_html: `<!-- Google In-Article Ad -->
-<div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
-  <p style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">গুগল অ্যাডসেন্স / GOOGLE ADSENSE READY SLOT</p>
-  <p style="font-weight: 600; color: #0f172a; margin: 0 0 6px 0;">ব্যবসা ও স্টার্টআপের জন্য স্মার্ট ফিনান্সিয়াল সফটওয়্যার</p>
-  <button style="background: #e11d48; color: #fff; padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer;">ফ্রি ট্রায়াল শুরু করুন</button>
-</div>`,
-    is_enabled: true,
-    impressions: 18400,
-    clicks: 860,
+    type: 'adsterra_code',
+    is_enabled: false,
+    impressions: 0,
+    clicks: 0,
   },
   {
     id: 'ad-sidebar',
-    title: 'সাইডবার ব্যানার (300x600 Half Page)',
+    title: 'সাইডবার ব্যানার (Adsterra 300x250)',
     slot: 'sidebar',
-    type: 'custom_banner',
-    image_url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&auto=format&fit=crop&q=80',
-    target_url: 'https://news.google.com',
-    sponsor_name: 'FinTech Banking Partner',
-    code_html: `<!-- Sidebar 300x600 Ad -->
-<div style="background: #f1f5f9; border-radius: 8px; padding: 20px; border: 1px solid #e2e8f0; text-align: center;">
-  <div style="font-size: 10px; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">বিজ্ঞাপন পার্টনার</div>
-  <h5 style="font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">আন্তর্জাতিক মানি ট্রান্সফার ও রেমিট্যান্স</h5>
-  <p style="font-size: 13px; color: #475569; margin-bottom: 14px;">জিরো ফি সহ দেশে প্রিয়জনের কাছে তাৎক্ষণিক টাকা পাঠান নিরাপদে।</p>
-  <span style="display: inline-block; background: #0284c7; color: white; padding: 6px 14px; border-radius: 4px; font-size: 12px; font-weight: 600;">বিস্তারিত দেখুন &rarr;</span>
-</div>`,
+    type: 'adsterra_code',
+    sponsor_name: 'Adsterra Network',
+    code_html: `<script>
+  atOptions = {
+    'key' : 'df15c15bbb929ea00dcbac992a9419a4',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script src="https://www.highrevenueformat.com/df15c15bbb929ea00dcbac992a9419a4/invoke.js"></script>`,
     is_enabled: true,
     impressions: 14200,
     clicks: 690,

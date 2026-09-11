@@ -9,6 +9,7 @@ interface FooterProps {
   onOpenAdmin: () => void;
   isAdmin: boolean;
   onOpenBlogHub?: () => void;
+  onOpenBookHub?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -18,6 +19,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenAdmin,
   isAdmin,
   onOpenBlogHub,
+  onOpenBookHub,
 }) => {
   return (
     <footer className="bg-stone-950 text-stone-300 border-t border-stone-800 pt-12 pb-8 mt-16">
@@ -72,8 +74,22 @@ export const Footer: React.FC<FooterProps> = ({
                   </button>
                 </li>
               ))}
-              {onOpenBlogHub && (
+              {onOpenBookHub && (
                 <li className="col-span-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenBookHub();
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <span>📖 {language === 'bn' ? 'বই ও ই-লাইব্রেরি (PDF)' : 'Books & E-Library (PDF)'}</span>
+                  </button>
+                </li>
+              )}
+              {onOpenBlogHub && (
+                <li className="col-span-2 pt-0.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -108,43 +124,52 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
           </div>
 
-          {/* Col 4: Admin Portal Link */}
+          {/* Col 4: Contact & Office Desk */}
           <div>
             <h4 className="font-bold text-sm text-white uppercase tracking-wider mb-4 border-l-2 border-rose-500 pl-2">
-              {language === 'bn' ? 'সম্পাদকীয় প্রশাসন' : 'Editorial Desk'}
+              {language === 'bn' ? 'যোগাযোগ ও তথ্য' : 'Contact & Info'}
             </h4>
-            <p className="text-xs text-stone-400 mb-4">
+            <p className="text-xs text-stone-400 mb-3 leading-relaxed">
               {language === 'bn'
-                ? 'সংবাদ প্রকাশ, বিজ্ঞাপন নিয়ন্ত্রণ ও রিয়েল-টাইম অ্যানালিটিক্স অ্যাক্সেস করতে এডমিন প্যানেলে যান।'
-                : 'Restricted administrative portal for publishing, Google AdSense management and real-time readership metrics.'}
+                ? 'বিজ্ঞাপন, কন্টেন্ট বা যেকোনো অনুসন্ধানের জন্য আমাদের সম্পাদকীয় টিমের সাথে যোগাযোগ করুন।'
+                : 'For editorial tips, press inquiries, and advertising: info@futurenews.com'}
             </p>
-            <button
-              type="button"
-              id="footer-admin-btn"
-              onClick={onOpenAdmin}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded bg-stone-800 hover:bg-rose-600 text-white text-xs font-bold transition-all shadow-xs"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>
-                {isAdmin
-                  ? language === 'bn'
-                    ? 'এডমিন ড্যাশবোর্ড খুলুন'
-                    : 'Open Admin Dashboard'
-                  : language === 'bn'
-                    ? 'এডমিন প্রবেশদ্বার (লগইন)'
-                    : 'Admin Secure Gateway'}
-              </span>
-            </button>
+            <div className="text-xs text-stone-400 space-y-1.5">
+              <p className="flex items-center gap-1.5 text-stone-300">
+                <span>📍</span>
+                <span>ঢাকা, বাংলাদেশ</span>
+              </p>
+              <p className="flex items-center gap-1.5 text-stone-300">
+                <span>✉️</span>
+                <span>ismail543782@gmail.com</span>
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Bottom Copyright & Netlify badge */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-400">
+        {/* Bottom Copyright & Discreet Lock Gateway */}
+        <div className="mt-8 pt-4 border-t border-stone-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-400">
           <p>© {new Date().getFullYear()} Future News Inc. সর্বস্বত্ব সংরক্ষিত।</p>
-          <div className="flex items-center gap-4 text-stone-400">
+          <div className="flex items-center gap-3 text-stone-400">
             <span>Netlify Production Ready</span>
             <span>•</span>
             <span>Bilingual Dynamic SEO</span>
+            <span>•</span>
+            {/* Discreet lock icon without any "Admin" label */}
+            <button
+              type="button"
+              id="footer-lock-btn"
+              onClick={onOpenAdmin}
+              className="p-1.5 rounded-full text-stone-500 hover:text-stone-300 hover:bg-stone-800/70 transition-colors cursor-pointer"
+              title="Secure Gateway"
+              aria-label="Secure Gateway"
+            >
+              {isAdmin ? (
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <Lock className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
         </div>
       </div>

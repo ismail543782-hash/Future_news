@@ -298,12 +298,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
             )}
           </div>
 
-          {/* In-article Ad */}
-          <div className="px-6 sm:px-10 pt-6">
-            <AdBanner slot="in_article" />
-          </div>
-
-          {/* Main Body Text */}
+          {/* Main Body Text (Smooth reading experience) */}
           <div className="p-6 sm:p-10 space-y-6 text-stone-800 leading-relaxed text-sm sm:text-base font-sans">
             {(content || '')
               .split(/\n+/)
@@ -360,6 +355,11 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
             </div>
           )}
         </article>
+
+        {/* Monetization Ad: Bottom Content Banner */}
+        <div className="my-6">
+          <AdBanner slot="bottom_banner" />
+        </div>
 
         {/* Reader Comments Section */}
         <div className="mt-8 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 shadow-xs space-y-6">

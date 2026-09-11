@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Article, BlogPost } from '../../types/news';
+import { Article, BlogPost, Book } from '../../types/news';
 import { generateDynamicSitemapXml } from '../../utils/seo';
 import {
   Globe,
@@ -19,9 +19,10 @@ import {
 interface AdminSeoCenterProps {
   articles: Article[];
   blogs: BlogPost[];
+  books?: Book[];
 }
 
-export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs }) => {
+export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs, books = [] }) => {
   const [googleVerificationCode, setGoogleVerificationCode] = useState(() => {
     return localStorage.getItem('future_news_google_verification') || '';
   });
@@ -50,7 +51,7 @@ export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs 
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  const xmlContent = generateDynamicSitemapXml(articles, blogs);
+  const xmlContent = generateDynamicSitemapXml(articles, blogs, books);
 
   const handleDownloadSitemap = () => {
     const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8' });

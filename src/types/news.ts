@@ -124,13 +124,13 @@ export interface BreakingNews {
   created_at: string;
 }
 
-export type AdSlot = 'header_leaderboard' | 'in_article' | 'sidebar' | 'sticky_bottom';
+export type AdSlot = 'header_leaderboard' | 'in_article' | 'sidebar' | 'sticky_bottom' | 'bottom_banner';
 
 export interface Advertisement {
   id: string;
   title: string;
   slot: AdSlot;
-  type: 'custom_banner' | 'adsense_code';
+  type: 'custom_banner' | 'adsense_code' | 'adsterra_code';
   image_url?: string;
   target_url?: string;
   sponsor_name?: string;
@@ -177,4 +177,37 @@ export interface AdSenseSettings {
   sidebarSlotId?: string;
   stickySlotId?: string;
   autoAdsEnabled?: boolean;
+}
+
+export interface BookPage {
+  id: string;
+  page_number: number;
+  chapter_title?: string;
+  content: string; // The formatted text/story for this page
+}
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  slug: string;
+  category: string;
+  category_bn: string;
+  cover_image: string;
+  description: string;
+  pdf_url?: string;
+  allow_download?: boolean;
+  total_pages: number;
+  reading_time_minutes: number;
+  published_year?: string;
+  language: 'bn' | 'en';
+  is_published: boolean;
+  is_featured?: boolean;
+  views_count: number;
+  created_at: string;
+  updated_at: string;
+  pages?: BookPage[];
+  meta_title?: string;
+  meta_description?: string;
+  keywords?: string[];
 }

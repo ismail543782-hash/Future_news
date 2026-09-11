@@ -96,6 +96,11 @@ export const AdsManager: React.FC = () => {
       size: '300x600 বা 300x250',
       desc: 'ডেস্কটপ স্ক্রিনে খবরের ডানপাশে ফিক্সড ও স্পষ্ট অবস্থানে প্রদর্শিত হয়।',
     },
+    bottom_banner: {
+      title: 'আর্টিকেল ও ব্লগের নিচের বিজ্ঞাপন (Bottom Banner)',
+      size: '728x90 বা রেস্পনসিভ',
+      desc: 'নিউজ বা ব্লগের শেষে কমেন্টের ঠিক ওপরে প্রদর্শিত হয়। উচ্চ এনগেজমেন্ট স্লট।',
+    },
     sticky_bottom: {
       title: 'স্টিকি বটম ব্যানার (Sticky Footer Bar)',
       size: 'রেস্পনসিভ ফ্লোটিং বার',
@@ -323,16 +328,37 @@ export const AdsManager: React.FC = () => {
             </label>
           </div>
 
-          {/* Ad Format Selector: Custom Banner vs AdSense Code */}
+          {/* Ad Format Selector: Adsterra vs AdSense vs Custom Banner */}
           <div>
             <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
-              বিজ্ঞাপনের ধরন (Format Type)
+              বিজ্ঞাপনের মাধ্যম বা ধরন (Format Type)
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => handleUpdateCurrentAd('type', 'adsterra_code')}
+                className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors ${
+                  currentAd.type === 'adsterra_code'
+                    ? 'border-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-500'
+                    : 'border-stone-200 hover:bg-stone-50'
+                }`}
+              >
+                <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-xs text-stone-900 flex items-center gap-1">
+                    <span>Adsterra কোড</span>
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 rounded font-bold">বর্তমান</span>
+                  </h4>
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    অ্যাডস্টারার ব্যানার, ইন-আর্টিকেল বা পপকর্ন স্ক্রিপ্ট/আইফ্রেম কোড।
+                  </p>
+                </div>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleUpdateCurrentAd('type', 'adsense_code')}
-                className={`p-3 rounded-lg border text-left flex items-start gap-3 transition-colors ${
+                className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors ${
                   currentAd.type === 'adsense_code'
                     ? 'border-rose-600 bg-rose-50/40 ring-1 ring-rose-500'
                     : 'border-stone-200 hover:bg-stone-50'
@@ -341,10 +367,10 @@ export const AdsManager: React.FC = () => {
                 <Code className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold text-xs text-stone-900">
-                    গুগল অ্যাডসেন্স / কাস্টম স্ক্রিপ্ট কোড
+                    গুগল অ্যাডসেন্স কোড
                   </h4>
-                  <p className="text-[11px] text-stone-600">
-                    Google AdSense, Ezoic বা যেকোনো বিজ্ঞাপনের HTML/JS কোড স্নsnippet পেস্ট করুন।
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    Google AdSense এর HTML &lt;ins&gt; বা স্ক্রিপ্ট কোড।
                   </p>
                 </div>
               </button>
@@ -352,19 +378,19 @@ export const AdsManager: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleUpdateCurrentAd('type', 'custom_banner')}
-                className={`p-3 rounded-lg border text-left flex items-start gap-3 transition-colors ${
+                className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors ${
                   currentAd.type === 'custom_banner'
-                    ? 'border-rose-600 bg-rose-50/40 ring-1 ring-rose-500'
+                    ? 'border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-500'
                     : 'border-stone-200 hover:bg-stone-50'
                 }`}
               >
                 <ImageIcon className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-bold text-xs text-stone-900">
-                    কাস্টম ব্যানার বিজ্ঞাপন (ছবি + লিংক)
+                    কাস্টম স্পন্সর ব্যানার
                   </h4>
-                  <p className="text-[11px] text-stone-600">
-                    নিজের বিজ্ঞাপন বা কোনো স্পন্সরের ছবির ব্যানার ও টার্গেট ওয়েবসাইটের লিংক দিন।
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    স্পন্সরের নিজস্ব ছবির ব্যানার ও ওয়েবসাইটের লিঙ্ক।
                   </p>
                 </div>
               </button>
@@ -372,7 +398,35 @@ export const AdsManager: React.FC = () => {
           </div>
 
           {/* Type Specific Fields */}
-          {currentAd.type === 'adsense_code' ? (
+          {currentAd.type === 'adsterra_code' ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">
+                    Adsterra ব্যানার বা বিজ্ঞাপন কোড (HTML/JavaScript Snippet)
+                  </label>
+                  <span className="text-[11px] text-emerald-700 font-semibold">Adsterra Script / iframe Tag</span>
+                </div>
+                <textarea
+                  rows={6}
+                  placeholder={`<!-- Example Adsterra Banner Snippet -->\n<script type="text/javascript">\n  atOptions = {\n    'key' : 'abcdef1234567890',\n    'format' : 'iframe',\n    'height' : 250,\n    'width' : 300,\n    'params' : {}\n  };\n</script>\n<script type="text/javascript" src="//www.topcreativeformat.com/abcdef1234567890/invoke.js"></script>`}
+                  value={currentAd.code_html || ''}
+                  onChange={(e) => handleUpdateCurrentAd('code_html', e.target.value)}
+                  className="w-full p-3 font-mono text-xs bg-stone-900 text-stone-100 rounded-lg border border-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-900 space-y-1">
+                <span className="font-bold block flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Adsterra ব্যবহার করার নিয়ম:</span>
+                </span>
+                <p className="text-[11px] text-emerald-800">
+                  আপনার Adsterra Publisher Dashboard-এ গিয়ে এই স্লটের মাপ অনুযায়ী (যেমন: 728x90, 300x250, বা 300x600) ব্যানার তৈরি করে প্রাপ্ত সম্পূর্ণ কোডটি উপরে পেস্ট করুন। কোড পেস্ট করার সাথে সাথেই নিচের প্রিভিউতে এবং ওয়েবসাইটে প্রদর্শিত হবে।
+                </p>
+              </div>
+            </div>
+          ) : currentAd.type === 'adsense_code' ? (
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1">
