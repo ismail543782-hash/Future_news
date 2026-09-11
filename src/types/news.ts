@@ -196,6 +196,9 @@ export interface Book {
   cover_image: string;
   description: string;
   pdf_url?: string;
+  pdf_filename?: string;
+  pdf_filesize?: string;
+  has_uploaded_pdf?: boolean;
   allow_download?: boolean;
   total_pages: number;
   reading_time_minutes: number;

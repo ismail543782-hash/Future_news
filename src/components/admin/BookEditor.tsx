@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Book, BookPage, Language } from '../../types/news';
 import {
   Save,
@@ -15,7 +15,28 @@ import {
   Eye,
   CheckCircle,
   HelpCircle,
+  Upload,
+  FileUp,
+  RefreshCw,
+  Check,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
+import {
+  savePdfBlob,
+  getPdfBlob,
+  compressImageFile,
+  normalizePdfViewerUrl,
+} from '../../utils/fileStorage';
+
+function formatBytes(bytes: number, decimals = 1): string {
+  if (!+bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 interface BookEditorProps {
   book?: Book | null;
@@ -63,6 +84,107 @@ export const BookEditor: React.FC<BookEditorProps> = ({
   const [publishedYear, setPublishedYear] = useState(book?.published_year || '২০২৬');
   const [isPublished, setIsPublished] = useState(book?.is_published ?? true);
   const [isFeatured, setIsFeatured] = useState(book?.is_featured ?? false);
+
+  // PDF Upload & File State
+  const [pdfSourceMode, setPdfSourceMode] = useState<'upload' | 'url'>(
+    book?.has_uploaded_pdf || !book?.pdf_url ? 'upload' : 'url'
+  );
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfFileName, setPdfFileName] = useState<string>(book?.pdf_filename || '');
+  const [pdfFileSize, setPdfFileSize] = useState<string>(book?.pdf_filesize || '');
+  const [hasExistingUploadedPdf, setHasExistingUploadedPdf] = useState<boolean>(Boolean(book?.has_uploaded_pdf));
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState<boolean>(false);
+  const [isDraggingPdf, setIsDraggingPdf] = useState<boolean>(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  // Cover Image Upload & File State
+  const [coverSourceMode, setCoverSourceMode] = useState<'upload' | 'url' | 'preset'>('upload');
+  const [isCompressingImage, setIsCompressingImage] = useState<boolean>(false);
+  const [isDraggingCover, setIsDraggingCover] = useState<boolean>(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Form Saving State
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Load existing PDF preview if present
+  useEffect(() => {
+    if (book?.id && book?.has_uploaded_pdf) {
+      getPdfBlob(book.id).then((stored) => {
+        if (stored) {
+          setPdfFileName(stored.filename);
+          setPdfFileSize(formatBytes(stored.size));
+          setHasExistingUploadedPdf(true);
+          const url = URL.createObjectURL(stored.blob);
+          setPreviewPdfUrl(url);
+        }
+      });
+    } else if (book?.pdf_url) {
+      const norm = normalizePdfViewerUrl(book.pdf_url);
+      setPreviewPdfUrl(norm.embedUrl);
+    }
+  }, [book?.id, book?.has_uploaded_pdf, book?.pdf_url]);
+
+  // Clean up object URLs
+  useEffect(() => {
+    return () => {
+      if (previewPdfUrl && previewPdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewPdfUrl);
+      }
+    };
+  }, [previewPdfUrl]);
+
+  // Handle PDF file selection
+  const handlePdfFileSelect = (file: File) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert(language === 'bn' ? 'শুধুমাত্র পিডিএফ (.pdf) ফাইল গ্রহণযোগ্য।' : 'Only PDF files are allowed.');
+      return;
+    }
+    setPdfFile(file);
+    setPdfFileName(file.name);
+    setPdfFileSize(formatBytes(file.size));
+    setHasExistingUploadedPdf(false);
+
+    if (previewPdfUrl && previewPdfUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewPdfUrl);
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewPdfUrl(url);
+  };
+
+  const handleClearPdfFile = () => {
+    setPdfFile(null);
+    setPdfFileName('');
+    setPdfFileSize('');
+    setHasExistingUploadedPdf(false);
+    if (previewPdfUrl && previewPdfUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewPdfUrl);
+    }
+    setPreviewPdfUrl(null);
+    if (pdfInputRef.current) {
+      pdfInputRef.current.value = '';
+    }
+  };
+
+  // Handle Cover image file selection
+  const handleCoverFileSelect = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert(language === 'bn' ? 'শুধুমাত্র ছবি (JPEG/PNG/WebP) ফাইল গ্রহণযোগ্য।' : 'Only image files are allowed.');
+      return;
+    }
+    try {
+      setIsCompressingImage(true);
+      const dataUrl = await compressImageFile(file, 1000, 1500, 0.85);
+      setCoverImage(dataUrl);
+    } catch (err) {
+      console.error(err);
+      alert(language === 'bn' ? 'ছবি প্রসেসিংয়ে সমস্যা হয়েছে।' : 'Failed to process image.');
+    } finally {
+      setIsCompressingImage(false);
+    }
+  };
 
   // Pages
   const [pages, setPages] = useState<BookPage[]>(
@@ -157,7 +279,7 @@ export const BookEditor: React.FC<BookEditorProps> = ({
   };
 
   // Save Book Handler
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       alert(language === 'bn' ? 'বইয়ের নাম আবশ্যক।' : 'Book title is required.');
@@ -168,40 +290,67 @@ export const BookEditor: React.FC<BookEditorProps> = ({
       return;
     }
 
-    const keywords = keywordsText
-      .split(',')
-      .map((k) => k.trim())
-      .filter(Boolean);
+    try {
+      setIsSaving(true);
+      const bookId = book?.id || `book-${Date.now()}`;
+      const slug = book?.slug || generateSlug(title);
 
-    const slug = book?.slug || generateSlug(title);
+      let finalPdfUrl = pdfUrl.trim();
+      let hasUploadedPdf = hasExistingUploadedPdf;
+      let finalFileName = pdfFileName;
+      let finalFileSize = pdfFileSize;
 
-    const savedBook: Book = {
-      id: book?.id || `book-${Date.now()}`,
-      title: title.trim(),
-      author: author.trim(),
-      slug,
-      category,
-      category_bn: categoryBn,
-      cover_image: coverImage.trim(),
-      description: description.trim(),
-      pdf_url: pdfUrl.trim() || undefined,
-      allow_download: allowDownload,
-      total_pages: pages.length,
-      reading_time_minutes: Number(readingTime) || 10,
-      published_year: publishedYear.trim() || '২০২৬',
-      language: 'bn',
-      is_published: isPublished,
-      is_featured: isFeatured,
-      views_count: book?.views_count || 0,
-      created_at: book?.created_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      pages,
-      meta_title: metaTitle.trim() || undefined,
-      meta_description: metaDescription.trim() || undefined,
-      keywords: keywords.length > 0 ? keywords : undefined,
-    };
+      if (pdfFile) {
+        // Save PDF to IndexedDB
+        await savePdfBlob(bookId, pdfFile, pdfFile.name);
+        hasUploadedPdf = true;
+        finalFileName = pdfFile.name;
+        finalFileSize = formatBytes(pdfFile.size);
+        // Create an active blob URL for immediate viewing in this session
+        finalPdfUrl = URL.createObjectURL(pdfFile);
+      }
 
-    onSave(savedBook);
+      const keywords = keywordsText
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean);
+
+      const savedBook: Book = {
+        id: bookId,
+        title: title.trim(),
+        author: author.trim(),
+        slug,
+        category,
+        category_bn: categoryBn,
+        cover_image: coverImage.trim(),
+        description: description.trim(),
+        pdf_url: finalPdfUrl || undefined,
+        pdf_filename: finalFileName || undefined,
+        pdf_filesize: finalFileSize || undefined,
+        has_uploaded_pdf: hasUploadedPdf,
+        allow_download: allowDownload,
+        total_pages: pages.length,
+        reading_time_minutes: Number(readingTime) || 10,
+        published_year: publishedYear.trim() || '২০২৬',
+        language: 'bn',
+        is_published: isPublished,
+        is_featured: isFeatured,
+        views_count: book?.views_count || 0,
+        created_at: book?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        pages,
+        meta_title: metaTitle.trim() || undefined,
+        meta_description: metaDescription.trim() || undefined,
+        keywords: keywords.length > 0 ? keywords : undefined,
+      };
+
+      onSave(savedBook);
+    } catch (err) {
+      console.error('Failed to save book:', err);
+      alert(language === 'bn' ? 'বই সংরক্ষণ করতে সমস্যা হয়েছে।' : 'Failed to save book.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const activePage = pages[activeEditingPageIdx] || pages[0];
@@ -342,87 +491,387 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                   </select>
                 </div>
 
-                {/* Cover Image URL & Preview */}
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-bold text-stone-700 flex items-center justify-between">
-                    <span>{language === 'bn' ? 'বইয়ের প্রচ্ছদ ছবি (Cover Image URL)' : 'Cover Image URL'}</span>
-                    <span className="text-[11px] text-stone-400 font-normal">
-                      {language === 'bn' ? 'সরাসরি ছবির লিংক দিন' : 'Direct image link'}
-                    </span>
-                  </label>
+                {/* Cover Image Section */}
+                <div className="space-y-3 md:col-span-2 bg-stone-50/80 p-4 rounded-xl border border-stone-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-rose-600" />
+                      <span>{language === 'bn' ? 'বইয়ের প্রচ্ছদ ছবি (Cover Image)' : 'Book Cover Image'}</span>
+                    </label>
 
-                  <div className="flex gap-4 items-start">
-                    <div className="w-24 h-36 rounded-lg overflow-hidden bg-stone-100 border border-stone-200 shrink-0 shadow-xs">
+                    {/* Mode Selector */}
+                    <div className="flex bg-stone-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setCoverSourceMode('upload')}
+                        className={`px-2.5 py-1 rounded-md transition-all ${
+                          coverSourceMode === 'upload'
+                            ? 'bg-white text-stone-900 shadow-xs font-bold'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        {language === 'bn' ? '📁 ফাইল আপলোড' : '📁 Upload File'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoverSourceMode('url')}
+                        className={`px-2.5 py-1 rounded-md transition-all ${
+                          coverSourceMode === 'url'
+                            ? 'bg-white text-stone-900 shadow-xs font-bold'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        {language === 'bn' ? '🔗 ছবির লিংক' : '🔗 Image Link'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoverSourceMode('preset')}
+                        className={`px-2.5 py-1 rounded-md transition-all ${
+                          coverSourceMode === 'preset'
+                            ? 'bg-white text-stone-900 shadow-xs font-bold'
+                            : 'text-stone-600 hover:text-stone-900'
+                        }`}
+                      >
+                        {language === 'bn' ? '🖼️ রেডিমেড' : '🖼️ Presets'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    {/* Thumbnail Preview */}
+                    <div className="w-24 h-36 rounded-lg overflow-hidden bg-white border border-stone-300 shrink-0 shadow-xs relative group">
                       {coverImage ? (
-                        <img
-                          src={coverImage}
-                          alt="Cover Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80';
-                          }}
-                        />
+                        <>
+                          <img
+                            src={coverImage}
+                            alt="Cover Preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-[10px] text-white font-bold bg-black/60 px-1.5 py-0.5 rounded">
+                              {language === 'bn' ? 'প্রিভিউ' : 'Preview'}
+                            </span>
+                          </div>
+                        </>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-stone-400">
-                          <ImageIcon className="w-6 h-6" />
+                        <div className="w-full h-full flex flex-col items-center justify-center text-stone-400 p-2 text-center">
+                          <ImageIcon className="w-6 h-6 mb-1" />
+                          <span className="text-[10px] leading-tight">
+                            {language === 'bn' ? 'কোনো ছবি নেই' : 'No Cover'}
+                          </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex-1 space-y-2">
-                      <input
-                        type="url"
-                        value={coverImage}
-                        onChange={(e) => setCoverImage(e.target.value)}
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
-                      />
+                    {/* Mode Specific Controls */}
+                    <div className="flex-1 w-full space-y-2.5">
+                      {coverSourceMode === 'upload' && (
+                        <div className="space-y-2">
+                          <input
+                            type="file"
+                            ref={coverInputRef}
+                            accept="image/jpeg,image/png,image/webp,image/jpg"
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) handleCoverFileSelect(f);
+                            }}
+                            className="hidden"
+                          />
 
-                      <div className="space-y-1">
-                        <span className="text-[11px] text-stone-500 font-semibold block">
-                          {language === 'bn' ? 'রেডিমেড প্রচ্ছদ নির্বাচন করুন:' : 'Quick cover presets:'}
-                        </span>
-                        <div className="flex gap-2">
-                          {SAMPLE_COVERS.map((url, i) => (
-                            <img
-                              key={i}
-                              src={url}
-                              alt={`Preset ${i}`}
-                              onClick={() => setCoverImage(url)}
-                              className={`w-10 h-14 object-cover rounded cursor-pointer border-2 transition-all ${
-                                coverImage === url ? 'border-rose-600 scale-105' : 'border-transparent opacity-70 hover:opacity-100'
-                              }`}
-                            />
-                          ))}
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDraggingCover(true);
+                            }}
+                            onDragLeave={() => setIsDraggingCover(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDraggingCover(false);
+                              const f = e.dataTransfer.files?.[0];
+                              if (f) handleCoverFileSelect(f);
+                            }}
+                            onClick={() => coverInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                              isDraggingCover
+                                ? 'border-rose-500 bg-rose-50'
+                                : 'border-stone-300 hover:border-rose-400 hover:bg-white bg-stone-100/50'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center justify-center gap-1.5">
+                              <div className="w-9 h-9 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+                                <FileUp className="w-4 h-4" />
+                              </div>
+                              <span className="text-xs font-bold text-stone-800">
+                                {isCompressingImage
+                                  ? (language === 'bn' ? 'ছবি প্রসেসিং ও কম্প্রেস হচ্ছে...' : 'Compressing image...')
+                                  : (language === 'bn' ? 'কম্পিউটার বা মোবাইল থেকে প্রচ্ছদ ছবি সিলেক্ট করুন' : 'Click to select cover image')}
+                              </span>
+                              <span className="text-[11px] text-stone-500">
+                                {language === 'bn'
+                                  ? 'বা এখানে টেনে এনে ছেড়ে দিন (JPEG, PNG, WebP)'
+                                  : 'or drag & drop here (JPEG, PNG, WebP)'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {coverImage && (
+                            <div className="flex items-center justify-between text-[11px] text-stone-500 bg-white px-3 py-1.5 rounded-lg border border-stone-200">
+                              <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                                <Check className="w-3.5 h-3.5" />
+                                {language === 'bn' ? 'প্রচ্ছদ প্রস্তুত' : 'Cover image ready'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => coverInputRef.current?.click()}
+                                className="text-rose-600 hover:underline font-bold"
+                              >
+                                {language === 'bn' ? 'ছবি পরিবর্তন' : 'Change Image'}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
+
+                      {coverSourceMode === 'url' && (
+                        <div className="space-y-1.5">
+                          <input
+                            type="url"
+                            value={coverImage}
+                            onChange={(e) => setCoverImage(e.target.value)}
+                            placeholder="https://images.unsplash.com/photo-..."
+                            className="w-full px-3.5 py-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                          />
+                          <span className="text-[11px] text-stone-400 block">
+                            {language === 'bn'
+                              ? 'অনলাইনে হোস্ট করা যেকোনো হাই-রেজোলিউশন প্রচ্ছদের লিংক দিন।'
+                              : 'Enter any public image URL for the book cover.'}
+                          </span>
+                        </div>
+                      )}
+
+                      {coverSourceMode === 'preset' && (
+                        <div className="space-y-2">
+                          <span className="text-[11px] text-stone-600 font-semibold block">
+                            {language === 'bn' ? 'নিচের যেকোনো একটি প্রচ্ছদ বেছে নিন:' : 'Choose from sample covers:'}
+                          </span>
+                          <div className="flex flex-wrap gap-2.5">
+                            {SAMPLE_COVERS.map((url, i) => (
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`Preset ${i}`}
+                                onClick={() => setCoverImage(url)}
+                                className={`w-12 h-16 object-cover rounded-md cursor-pointer border-2 transition-all hover:scale-105 ${
+                                  coverImage === url ? 'border-rose-600 shadow-md ring-2 ring-rose-200' : 'border-stone-200 opacity-70 hover:opacity-100'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* PDF Document URL */}
-                <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-stone-700 flex items-center gap-2">
-                    <Download className="w-3.5 h-3.5 text-rose-600" />
-                    <span>
-                      {language === 'bn'
-                        ? 'অরিজিনাল PDF ফাইলের লিংক (ঐচ্ছিক)'
-                        : 'Original PDF Document URL (Optional)'}
-                    </span>
-                  </label>
-                  <input
-                    type="url"
-                    value={pdfUrl}
-                    onChange={(e) => setPdfUrl(e.target.value)}
-                    placeholder="https://example.com/books/my-book.pdf অথবা Google Drive লিংক"
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
-                  />
-                  <p className="text-[11px] text-stone-400">
-                    {language === 'bn'
-                      ? 'পিডিএফ লিংক দিলে পাঠকরা অনলাইনে সরাসরি পিডিএফ দেখতে ও ডাউনলোড করতে পারবেন।'
-                      : 'Allows users to embed and download the raw PDF.'}
-                  </p>
+                {/* PDF Document Upload & Embed Section */}
+                <div className="space-y-3 md:col-span-2 bg-rose-50/40 p-4 rounded-xl border border-rose-200/70">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                      <Download className="w-4 h-4 text-rose-600" />
+                      <span>{language === 'bn' ? 'পিডিএফ ডকুমেন্ট (PDF Book File)' : 'PDF Book File'}</span>
+                      {(pdfFile || hasExistingUploadedPdf) && (
+                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          {language === 'bn' ? 'ফাইল সংযুক্ত' : 'Attached'}
+                        </span>
+                      )}
+                    </label>
+
+                    {/* Mode Selector */}
+                    <div className="flex bg-rose-100/70 p-0.5 rounded-lg text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setPdfSourceMode('upload')}
+                        className={`px-3 py-1 rounded-md transition-all ${
+                          pdfSourceMode === 'upload'
+                            ? 'bg-white text-rose-900 shadow-xs font-bold'
+                            : 'text-rose-700 hover:text-rose-900'
+                        }`}
+                      >
+                        {language === 'bn' ? '📁 ফাইল আপলোড (<input type="file">)' : '📁 File Upload'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPdfSourceMode('url')}
+                        className={`px-3 py-1 rounded-md transition-all ${
+                          pdfSourceMode === 'url'
+                            ? 'bg-white text-rose-900 shadow-xs font-bold'
+                            : 'text-rose-700 hover:text-rose-900'
+                        }`}
+                      >
+                        {language === 'bn' ? '🔗 ড্রাইভ / অনলাইন লিংক' : '🔗 Web Link'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {pdfSourceMode === 'upload' ? (
+                    <div className="space-y-3">
+                      {/* Hidden native input */}
+                      <input
+                        type="file"
+                        ref={pdfInputRef}
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handlePdfFileSelect(f);
+                        }}
+                        className="hidden"
+                      />
+
+                      {/* If file is already selected or saved */}
+                      {pdfFile || hasExistingUploadedPdf ? (
+                        <div className="bg-white p-3.5 rounded-xl border border-rose-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-stone-900 truncate">
+                                {pdfFileName || (language === 'bn' ? 'পিডিএফ ডকুমেন্ট' : 'PDF Document')}
+                              </h4>
+                              <div className="flex items-center gap-2 text-[11px] text-stone-500">
+                                <span>{pdfFileSize || 'পিডিএফ ফাইল'}</span>
+                                <span>•</span>
+                                <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                                  <Check className="w-3 h-3" />
+                                  {language === 'bn' ? 'সরাসরি ব্রাউজারে পড়ার জন্য প্রস্তুত' : 'Ready for in-browser reading'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {previewPdfUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPdfPreviewModal(true)}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1.5 border border-rose-200"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>{language === 'bn' ? 'প্রিভিউ দেখুন' : 'Preview'}</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => pdfInputRef.current?.click()}
+                              className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold transition-colors"
+                            >
+                              {language === 'bn' ? 'ফাইল বদলান' : 'Replace'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleClearPdfFile}
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title={language === 'bn' ? 'ফাইল মুছুন' : 'Remove file'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Empty Dropzone */
+                        <div
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setIsDraggingPdf(true);
+                          }}
+                          onDragLeave={() => setIsDraggingPdf(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsDraggingPdf(false);
+                            const f = e.dataTransfer.files?.[0];
+                            if (f) handlePdfFileSelect(f);
+                          }}
+                          onClick={() => pdfInputRef.current?.click()}
+                          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+                            isDraggingPdf
+                              ? 'border-rose-500 bg-rose-100/50 scale-[1.01]'
+                              : 'border-rose-300 hover:border-rose-500 hover:bg-white bg-white/70'
+                          }`}
+                        >
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-md">
+                              <FileUp className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-stone-800">
+                                {language === 'bn'
+                                  ? 'সরাসরি কম্পিউটার বা মোবাইল থেকে PDF ফাইল সিলেক্ট করুন'
+                                  : 'Select PDF file from computer or mobile'}
+                              </p>
+                              <p className="text-xs text-stone-500 mt-0.5">
+                                {language === 'bn'
+                                  ? 'বা এখানে ফাইলটি টেনে এনে ছেড়ে দিন (সর্বোচ্চ ৫০ মেগাবাইট)'
+                                  : 'or drag & drop the .pdf file here (up to 50MB)'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="mt-1 px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors"
+                            >
+                              {language === 'bn' ? 'ফাইল ব্রাউজ করুন (.pdf)' : 'Browse File (.pdf)'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-[11px] text-stone-500 leading-relaxed">
+                        {language === 'bn'
+                          ? '💡 সুবিধা: ফাইল আপলোড করলে পাঠকরা কোনো গুগল ড্রাইভ বা আলাদা ট্যাবে না গিয়ে আপনার ওয়েবসাইটের ভেতরেই বিল্ট-ইন রিডারে পেজ বাই পেজ পড়তে পারবেন।'
+                          : '💡 Benefit: Uploaded PDFs render natively in your site\'s built-in reader without redirecting readers outside.'}
+                      </p>
+                    </div>
+                  ) : (
+                    /* External URL input */
+                    <div className="space-y-2">
+                      <input
+                        type="url"
+                        value={pdfUrl}
+                        onChange={(e) => {
+                          setPdfUrl(e.target.value);
+                          if (e.target.value.trim()) {
+                            const norm = normalizePdfViewerUrl(e.target.value.trim());
+                            setPreviewPdfUrl(norm.embedUrl);
+                          }
+                        }}
+                        placeholder="https://example.com/books/my-book.pdf অথবা Google Drive শেয়ার লিংক"
+                        className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-xs text-stone-900 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-stone-500">
+                        <span>
+                          {language === 'bn'
+                            ? 'গুগল ড্রাইভ বা সরাসরি পিডিএফ লিংক দিলে তা স্বয়ংক্রিয়ভাবে রিডারে সংযুক্ত হবে।'
+                            : 'Google Drive and direct PDF links will be automatically formatted for the reader.'}
+                        </span>
+                        {pdfUrl.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPdfPreviewModal(true)}
+                            className="text-rose-600 hover:underline font-bold inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            {language === 'bn' ? 'লিংক প্রিভিউ দেখুন' : 'Preview URL'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -747,15 +1196,87 @@ export const BookEditor: React.FC<BookEditorProps> = ({
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-all"
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" />
-                <span>{language === 'bn' ? 'বই সংরক্ষণ ও প্রকাশ করুন' : 'Save & Publish Book'}</span>
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>{language === 'bn' ? 'সংরক্ষণ ও আপলোড হচ্ছে...' : 'Saving & Uploading...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{language === 'bn' ? 'বই সংরক্ষণ ও প্রকাশ করুন' : 'Save & Publish Book'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
         </form>
       </div>
+
+      {/* Embedded PDF Preview Modal inside Book Editor */}
+      {showPdfPreviewModal && previewPdfUrl && (
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fade-in">
+          <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-stone-300">
+            <div className="px-5 py-3.5 bg-stone-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="text-xs font-bold truncate">
+                  {language === 'bn' ? 'পিডিএফ প্রিভিউ রিডার:' : 'PDF Reader Preview:'} {pdfFileName || title}
+                </span>
+                {pdfFileSize && (
+                  <span className="text-[10px] bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full">
+                    {pdfFileSize}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewPdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 text-[11px] bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-md font-semibold inline-flex items-center gap-1 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? 'নতুন ট্যাবে খুলুন' : 'Open Tab'}</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPdfPreviewModal(false)}
+                  className="p-1 hover:bg-stone-800 text-stone-400 hover:text-white rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 w-full bg-stone-100 relative">
+              <iframe
+                src={`${previewPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                title="PDF Preview"
+                className="w-full h-full border-0"
+              />
+            </div>
+
+            <div className="px-5 py-2.5 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs text-stone-600">
+              <span>
+                {language === 'bn'
+                  ? '✓ পাঠকরা ঠিক এভাবেই ওয়েবসাইটের ভেতরে পেজ-বাই-পেজ পড়তে পারবেন।'
+                  : '✓ Readers will experience this built-in page-by-page viewing.'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPdfPreviewModal(false)}
+                className="px-4 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-bold transition-colors"
+              >
+                {language === 'bn' ? 'প্রিভিউ বন্ধ করুন' : 'Close Preview'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

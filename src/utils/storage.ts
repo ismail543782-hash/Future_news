@@ -1,6 +1,7 @@
 import { Article, BreakingNews, Advertisement, Comment, Category, Author, ActivityLog, BlogPost, CountryEdition, PageViewRecord, AdSenseSettings, Book } from '../types/news';
 import { INITIAL_ARTICLES, INITIAL_BREAKING_NEWS, INITIAL_ADS, INITIAL_CATEGORIES, INITIAL_AUTHORS, INITIAL_BLOGS, INITIAL_EDITIONS } from '../data/initialData';
 import { INITIAL_BOOKS } from '../data/initialBooks';
+import { deletePdfBlob } from './fileStorage';
 
 const ARTICLES_KEY = 'fn_articles_v1';
 const BREAKING_KEY = 'fn_breaking_v1';
@@ -978,6 +979,7 @@ export function deleteBook(id: string): void {
   const book = books.find((b) => b.id === id);
   const updated = books.filter((b) => b.id !== id);
   localStorage.setItem(BOOKS_KEY, JSON.stringify(updated));
+  deletePdfBlob(id).catch(() => {});
   logActivity('Book Deleted', `বই মুছে ফেলা হয়েছে: ${book?.title || id}`);
 }
 

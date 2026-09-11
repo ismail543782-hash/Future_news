@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { getBookProgress, incrementBookViews } from '../utils/storage';
+import { downloadBookPdf } from '../utils/fileStorage';
 
 interface BookDetailProps {
   book: Book;
@@ -213,17 +214,19 @@ export const BookDetail: React.FC<BookDetailProps> = ({
                     </span>
                   </button>
 
-                  {book.pdf_url && (
-                    <a
-                      href={book.pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  {(book.has_uploaded_pdf || book.pdf_url) && (
+                    <button
+                      type="button"
+                      onClick={() => downloadBookPdf(book.id, book.title, book.pdf_url, book.pdf_filename)}
                       className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-800 font-bold text-sm transition-colors"
-                      title={language === 'bn' ? 'PDF ডাউনলোড' : 'Download PDF'}
+                      title={language === 'bn' ? 'PDF ফাইল সংরক্ষণ বা ডাউনলোড করুন' : 'Download PDF File'}
                     >
                       <Download className="w-4 h-4 text-stone-600" />
                       <span className="hidden sm:inline">{language === 'bn' ? 'PDF কপি' : 'PDF Copy'}</span>
-                    </a>
+                      {book.pdf_filesize && (
+                        <span className="text-[11px] text-stone-500 font-normal">({book.pdf_filesize})</span>
+                      )}
+                    </button>
                   )}
                 </div>
 

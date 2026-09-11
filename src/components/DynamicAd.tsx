@@ -246,8 +246,9 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
                 width: slot === 'sidebar' ? '300px' : '100%',
                 maxWidth: '100%',
                 minHeight:
-                  slot === 'sidebar' ? '250px' : slot === 'bottom_banner' ? '140px' : '90px',
-                height: slot === 'sidebar' ? '250px' : 'auto',
+                  slot === 'sidebar' ? '250px' : slot === 'bottom_banner' ? '160px' : '90px',
+                height:
+                  slot === 'sidebar' ? '250px' : slot === 'bottom_banner' ? '160px' : '95px',
               }}
               scrolling="no"
             />

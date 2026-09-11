@@ -17,8 +17,12 @@ import {
   Share2,
   Check,
   FileText,
+  ExternalLink,
+  RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import { saveBookProgress, getBookProgress } from '../utils/storage';
+import { getPdfObjectUrl, downloadBookPdf, normalizePdfViewerUrl } from '../utils/fileStorage';
 
 interface BookReaderProps {
   book: Book;
@@ -41,8 +45,71 @@ export const BookReader: React.FC<BookReaderProps> = ({
   const [fontSize, setFontSize] = useState<FontSize>('base');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTocDrawer, setShowTocDrawer] = useState(false);
-  const [viewMode, setViewMode] = useState<'interactive' | 'pdf'>('interactive');
+  const [viewMode, setViewMode] = useState<'interactive' | 'pdf'>(
+    book.has_uploaded_pdf || (book.pdf_url && (!book.pages || book.pages.length <= 1))
+      ? 'pdf'
+      : 'interactive'
+  );
   const [copied, setCopied] = useState(false);
+  const [resolvedPdfUrl, setResolvedPdfUrl] = useState<string>('');
+  const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
+  const [pdfZoom, setPdfZoom] = useState<number>(100);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  // Load PDF Blob from IndexedDB or external URL
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    const loadPdf = async () => {
+      setIsPdfLoading(true);
+      try {
+        if (book.has_uploaded_pdf) {
+          const objUrl = await getPdfObjectUrl(book.id);
+          if (active && objUrl) {
+            createdUrl = objUrl;
+            setResolvedPdfUrl(objUrl);
+            setIsPdfLoading(false);
+            return;
+          }
+        }
+
+        if (book.pdf_url) {
+          const norm = normalizePdfViewerUrl(book.pdf_url);
+          if (active) {
+            setResolvedPdfUrl(norm.embedUrl);
+            setIsPdfLoading(false);
+          }
+        } else {
+          if (active) setIsPdfLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load PDF source in reader:', err);
+        if (active) {
+          if (book.pdf_url) setResolvedPdfUrl(book.pdf_url);
+          setIsPdfLoading(false);
+        }
+      }
+    };
+
+    loadPdf();
+
+    return () => {
+      active = false;
+      if (createdUrl && createdUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [book.id, book.has_uploaded_pdf, book.pdf_url]);
+
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadBookPdf(book.id, book.title, resolvedPdfUrl || book.pdf_url, book.pdf_filename);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Derive pages
   const pages: BookPage[] = useMemo(() => {
@@ -212,29 +279,31 @@ export const BookReader: React.FC<BookReaderProps> = ({
           </button>
 
           {/* Mode Switch: Interactive vs PDF */}
-          {book.pdf_url && (
-            <div className="hidden sm:flex items-center bg-stone-500/10 rounded-lg p-0.5 text-[11px] font-bold">
+          {(resolvedPdfUrl || book.pdf_url || book.has_uploaded_pdf) && (
+            <div className="flex items-center bg-stone-500/10 rounded-lg p-0.5 text-[11px] font-bold">
               <button
                 type="button"
                 onClick={() => setViewMode('interactive')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
+                className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 ${
                   viewMode === 'interactive'
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                {language === 'bn' ? 'পেজ রিডার' : 'Page Reader'}
+                <BookOpen className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{language === 'bn' ? 'পেজ রিডার' : 'Page Reader'}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('pdf')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
+                className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 ${
                   viewMode === 'pdf'
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                {language === 'bn' ? 'অরিজিনাল PDF' : 'Original PDF'}
+                <FileText className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? 'বিল্ট-ইন PDF' : 'PDF Viewer'}</span>
               </button>
             </div>
           )}
@@ -388,15 +457,174 @@ export const BookReader: React.FC<BookReaderProps> = ({
       )}
 
       {/* Main Reading Canvas */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 flex flex-col">
-        {viewMode === 'pdf' && book.pdf_url ? (
-          /* PDF Embed Viewer */
-          <div className="w-full flex-1 min-h-[80vh] bg-white rounded-2xl shadow-xl overflow-hidden border border-stone-300">
-            <iframe
-              src={book.pdf_url}
-              title={book.title}
-              className="w-full h-full min-h-[80vh]"
-            />
+      <main
+        className={`flex-1 w-full mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-8 flex flex-col ${
+          viewMode === 'pdf' ? 'max-w-6xl' : 'max-w-4xl'
+        }`}
+      >
+        {viewMode === 'pdf' ? (
+          /* Built-in PDF Reader */
+          <div className="w-full flex-1 flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden border border-stone-300">
+            {/* Dedicated PDF Viewer Toolbar */}
+            <div className="px-4 py-2.5 bg-stone-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-stone-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="text-xs font-bold truncate text-stone-100 max-w-[200px] sm:max-w-md">
+                  {book.pdf_filename || book.title}
+                </span>
+                {book.pdf_filesize && (
+                  <span className="text-[10px] bg-stone-800 text-stone-300 px-2 py-0.5 rounded-full hidden sm:inline">
+                    {book.pdf_filesize}
+                  </span>
+                )}
+                {book.has_uploaded_pdf && (
+                  <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-semibold hidden md:inline">
+                    {language === 'bn' ? '✓ লোকাল স্টোরেজ' : '✓ Internal Storage'}
+                  </span>
+                )}
+              </div>
+
+              {/* Reader Controls */}
+              <div className="flex items-center gap-2">
+                {/* Zoom Controls */}
+                <div className="flex items-center bg-stone-800 rounded-lg p-0.5 text-xs text-stone-300">
+                  <button
+                    type="button"
+                    onClick={() => setPdfZoom((prev) => Math.max(50, prev - 15))}
+                    className="p-1.5 hover:bg-stone-700 rounded transition-colors"
+                    title={language === 'bn' ? 'জুম আউট' : 'Zoom Out'}
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-2 text-[11px] font-mono min-w-[45px] text-center font-bold">
+                    {pdfZoom}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPdfZoom((prev) => Math.min(200, prev + 15))}
+                    className="p-1.5 hover:bg-stone-700 rounded transition-colors"
+                    title={language === 'bn' ? 'জুম ইন' : 'Zoom In'}
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  {pdfZoom !== 100 && (
+                    <button
+                      type="button"
+                      onClick={() => setPdfZoom(100)}
+                      className="p-1.5 hover:bg-stone-700 rounded text-rose-400 transition-colors"
+                      title={language === 'bn' ? 'রিসেট (১০০%)' : 'Reset Zoom'}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Fullscreen Button */}
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="p-2 bg-stone-800 hover:bg-stone-700 rounded-lg text-xs text-stone-200 transition-colors hidden sm:inline-flex"
+                  title={language === 'bn' ? 'ফুলস্ক্রিন ভিউ' : 'Toggle Fullscreen'}
+                >
+                  {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+                </button>
+
+                {/* Open in New Tab */}
+                {resolvedPdfUrl && (
+                  <a
+                    href={resolvedPdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    title={language === 'bn' ? 'ব্রাউজারের মূল ভিউয়ারে খুলুন' : 'Open in New Tab'}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">{language === 'bn' ? 'নতুন ট্যাব' : 'New Tab'}</span>
+                  </a>
+                )}
+
+                {/* Download PDF */}
+                {book.allow_download && (
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
+                  >
+                    {isDownloading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>{language === 'bn' ? 'ডাউনলোড' : 'Download'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Embedded PDF Content */}
+            <div className="w-full flex-1 min-h-[75vh] md:min-h-[85vh] bg-stone-100 relative overflow-auto">
+              {isPdfLoading ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 gap-3 text-stone-500">
+                  <RefreshCw className="w-8 h-8 text-rose-600 animate-spin" />
+                  <p className="text-xs font-semibold">
+                    {language === 'bn' ? 'পিডিএফ রিডার লোড হচ্ছে...' : 'Loading PDF document...'}
+                  </p>
+                </div>
+              ) : resolvedPdfUrl ? (
+                <div
+                  className="w-full h-full min-h-[75vh] md:min-h-[85vh] transition-transform origin-top flex items-center justify-center"
+                  style={{
+                    transform: pdfZoom !== 100 ? `scale(${pdfZoom / 100})` : undefined,
+                    transformOrigin: 'top center',
+                  }}
+                >
+                  <iframe
+                    src={`${resolvedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                    title={book.title}
+                    className="w-full h-full min-h-[75vh] md:min-h-[85vh] border-0"
+                  />
+                </div>
+              ) : (
+                <div className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-center text-stone-500 gap-3">
+                  <FileText className="w-12 h-12 text-stone-300" />
+                  <p className="text-sm font-bold text-stone-700">
+                    {language === 'bn' ? 'পিডিএফ ফাইলটি পাওয়া যায়নি।' : 'PDF document not found.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('interactive')}
+                    className="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold"
+                  >
+                    {language === 'bn' ? 'পেজ রিডারে পড়ুন' : 'Read in Page Reader'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom PDF Reader Helper Strip */}
+            <div className="px-4 py-2 bg-stone-50 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>
+                  {language === 'bn'
+                    ? 'ওয়েবসাইটের ভেতরে সরাসরি পেজ বাই পেজ পাঠ • মাউস হুইল বা টাচ দিয়ে স্ক্রল করুন'
+                    : 'Native in-site page-by-page reader • Scroll via mouse wheel or swipe'}
+                </span>
+              </span>
+
+              <div className="flex items-center gap-3">
+                {book.pages && book.pages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('interactive')}
+                    className="text-rose-600 hover:underline font-bold"
+                  >
+                    {language === 'bn' ? 'স্টোরি পেজ রিডারে যেতে চান?' : 'Switch to Story Page Reader'}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           /* Interactive Page-by-Page Realistic Book Page */
@@ -453,50 +681,95 @@ export const BookReader: React.FC<BookReaderProps> = ({
       </main>
 
       {/* Bottom Sticky Page Navigation Bar */}
-      <footer
-        className={`sticky bottom-0 z-30 border-t px-4 py-3 flex items-center justify-between transition-colors ${themeStyles.footer}`}
-      >
-        <button
-          type="button"
-          onClick={handlePrev}
-          disabled={currentPage <= 1}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-stone-500/10 hover:bg-stone-500/20"
+      {viewMode === 'interactive' ? (
+        <footer
+          className={`sticky bottom-0 z-30 border-t px-4 py-3 flex items-center justify-between transition-colors ${themeStyles.footer}`}
         >
-          <ChevronLeft className="w-4 h-4" />
-          <span>{language === 'bn' ? 'পূর্ববর্তী পৃষ্ঠা' : 'Previous Page'}</span>
-        </button>
-
-        {/* Page Selector Pill */}
-        <div className="flex items-center gap-2">
-          <select
-            value={currentPage}
-            onChange={(e) => {
-              setCurrentPage(Number(e.target.value));
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="text-xs font-bold bg-stone-500/10 border-0 rounded-lg px-3 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-rose-500"
+          <button
+            type="button"
+            onClick={handlePrev}
+            disabled={currentPage <= 1}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-stone-500/10 hover:bg-stone-500/20"
           >
-            {pages.map((p) => (
-              <option key={p.id} value={p.page_number} className="text-stone-900 bg-white">
-                {language === 'bn' ? `পৃষ্ঠা ${p.page_number}` : `Page ${p.page_number}`}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-stone-500 hidden sm:inline">
-            / {totalPages}
-          </span>
-        </div>
+            <ChevronLeft className="w-4 h-4" />
+            <span>{language === 'bn' ? 'পূর্ববর্তী পৃষ্ঠা' : 'Previous Page'}</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={currentPage >= totalPages}
-          className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+          {/* Page Selector Pill */}
+          <div className="flex items-center gap-2">
+            <select
+              value={currentPage}
+              onChange={(e) => {
+                setCurrentPage(Number(e.target.value));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="text-xs font-bold bg-stone-500/10 border-0 rounded-lg px-3 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-rose-500"
+            >
+              {pages.map((p) => (
+                <option key={p.id} value={p.page_number} className="text-stone-900 bg-white">
+                  {language === 'bn' ? `পৃষ্ঠা ${p.page_number}` : `Page ${p.page_number}`}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-stone-500 hidden sm:inline">
+              / {totalPages}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={currentPage >= totalPages}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+          >
+            <span>{language === 'bn' ? 'পরবর্তী পৃষ্ঠা' : 'Next Page'}</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </footer>
+      ) : (
+        <footer
+          className={`sticky bottom-0 z-30 border-t px-4 py-2.5 flex items-center justify-between transition-colors ${themeStyles.footer}`}
         >
-          <span>{language === 'bn' ? 'পরবর্তী পৃষ্ঠা' : 'Next Page'}</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </footer>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-500/10 hover:bg-stone-500/20 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>{language === 'bn' ? 'লাইব্রেরিতে ফিরে যান' : 'Back to Library'}</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            {resolvedPdfUrl && (
+              <a
+                href={resolvedPdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-stone-500/10 hover:bg-stone-500/20 transition-colors inline-flex items-center gap-1"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{language === 'bn' ? 'ব্রাউজার ভিউয়ার' : 'Browser Viewer'}</span>
+              </a>
+            )}
+
+            {book.allow_download && (
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors disabled:opacity-50"
+              >
+                {isDownloading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>{language === 'bn' ? 'ডাউনলোড' : 'Download PDF'}</span>
+              </button>
+            )}
+          </div>
+        </footer>
+      )}
     </div>
   );
 };
