@@ -24,7 +24,7 @@ interface AdminSeoCenterProps {
 
 export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs, books = [] }) => {
   const [googleVerificationCode, setGoogleVerificationCode] = useState(() => {
-    return localStorage.getItem('future_news_google_verification') || '';
+    return localStorage.getItem('future_news_google_verification') || 'uFkfMw3Lp9m0I94ZvengPgY4RRXjCE4NQ9bmaeW4M38';
   });
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
