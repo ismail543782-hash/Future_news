@@ -34,7 +34,6 @@ import { StickyBottomAd } from './components/StickyBottomAd';
 import { Footer } from './components/Footer';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { DEFAULT_AD_CONFIG } from './config/adConfig';
 import { Sparkles, TrendingUp, Layers, Newspaper, RefreshCw, PenTool, ArrowRight, BookOpen, Download } from 'lucide-react';
 
 export default function App() {
@@ -240,26 +239,6 @@ export default function App() {
       window.removeEventListener('storage', handleDataUpdate);
     };
   }, [loadData]);
-
-  // Dynamically inject global Adsterra popunder/script for public visitors (protect admin from self-clicks)
-  useEffect(() => {
-    if (inAdminView || isAdmin) return;
-
-    if (
-      DEFAULT_AD_CONFIG.activeNetwork === 'adsterra' &&
-      DEFAULT_AD_CONFIG.adsterraGlobal?.popunderScript
-    ) {
-      const match = DEFAULT_AD_CONFIG.adsterraGlobal.popunderScript.match(/src=["']([^"']+)["']/);
-      const scriptUrl = match ? match[1] : null;
-      if (scriptUrl && !document.querySelector(`script[data-adsterra-popunder="true"]`)) {
-        const script = document.createElement('script');
-        script.src = scriptUrl;
-        script.async = true;
-        script.dataset.adsterraPopunder = 'true';
-        document.head.appendChild(script);
-      }
-    }
-  }, [inAdminView, isAdmin]);
 
   // Handle unique article URL navigation
   const handleSelectArticle = (slug: string) => {

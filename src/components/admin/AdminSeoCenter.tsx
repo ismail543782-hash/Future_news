@@ -283,7 +283,7 @@ export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs,
             <div className="flex flex-col">
               <span className="font-semibold text-stone-800 text-[11px]">Future News</span>
               <span className="text-[10px] text-stone-500 font-mono">
-                {window.location.origin || 'https://futurenews.netlify.app'} › news › bishwa-arthoniti
+                {window.location.origin || 'https://futurenews65.netlify.app'} › news › bishwa-arthoniti
               </span>
             </div>
           </div>

@@ -98,15 +98,16 @@ export const DEFAULT_AD_CONFIG: AdSystemConfig = {
   },
 
   // --------------------------------------------------------------------------
-  // 🟢 অ্যাডস্টারা গ্লোবাল পপকর্ন / সোশ্যাল বার স্ক্রিপ্ট কোড
+  // 🟢 অ্যাডস্টারা গ্লোবাল সেটিংস (সোশ্যাল বার ও পপআন্ডার সম্পূর্ণ বন্ধ)
   // --------------------------------------------------------------------------
   adsterraGlobal: {
-    popunderScript: `<script src="https://pl31276433.profitableratecpmnetwork.com/27/ea/8b/27ea8ba3fd3f5fb1d9bfbb2cb86fb64e.js"></script>`,
-    socialBarScript: ``,
+    // পাঠকদের বিরক্তি ও অপ্রীতিকর পপআপ রোধে Social Bar ও Popunder স্ক্রিপ্ট সম্পূর্ণ সরানো হয়েছে
+    popunderScript: '',
+    socialBarScript: '',
   },
 
   // --------------------------------------------------------------------------
-  // 🎯 নির্দিষ্ট স্লটভিত্তিক কোডসমূহ (Adsterra বা Google AdSense)
+  // 🎯 নির্দিষ্ট স্লটভিত্তিক নিরাপদ ব্যানার বিজ্ঞাপনসমূহ
   // --------------------------------------------------------------------------
   slots: {
     // ১. শীর্ষ হেডার ব্যানার (Leaderboard 728x90)
@@ -156,19 +157,12 @@ export const DEFAULT_AD_CONFIG: AdSystemConfig = {
       adSenseSlotId: '4567890123',
     },
 
-    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার (Sticky Footer)
+    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার (ডিফল্টভাবে বন্ধ রাখা হয়েছে যাতে কোনো অস্বস্তি না হয়)
     sticky_bottom: {
-      enabled: true,
-      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (Sticky Footer)',
+      enabled: false,
+      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (নিষ্ক্রিয়)',
       sizeHint: 'রেস্পনসিভ ফ্লোটিং বার',
-      adsterraHtml: `<!-- Adsterra Sticky Bottom Banner -->
-<div style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#ffffff;">
-  <div style="display:flex; align-items:center; gap:8px;">
-    <span style="background:#e11d48; color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;">AD</span>
-    <span style="font-size:12px; font-weight:600;">বিশেষ ডিসকাউন্টে প্রিমিয়াম সাবস্ক্রিপশন নিন!</span>
-  </div>
-  <a href="#" style="background:#ffffff; color:#0f172a; font-size:11px; font-weight:700; padding:4px 10px; border-radius:4px; text-decoration:none;">ভিজিট করুন</a>
-</div>`,
+      adsterraHtml: ``,
       adSenseSlotId: '5678901234',
     },
   },

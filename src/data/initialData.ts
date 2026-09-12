@@ -361,7 +361,7 @@ export const INITIAL_ADS: Advertisement[] = [
     target_url: 'https://google.com',
     sponsor_name: 'Digital Security Guardian',
     code_html: '',
-    is_enabled: true,
+    is_enabled: false,
     impressions: 31200,
     clicks: 1450,
   }

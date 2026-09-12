@@ -290,7 +290,7 @@ export function generateDynamicSitemapXml(
   blogs: BlogPost[],
   books: Book[] = []
 ): string {
-  const origin = window.location.origin || 'https://futurenews.netlify.app';
+  const origin = window.location.origin || 'https://futurenews65.netlify.app';
   const today = new Date().toISOString().split('T')[0];
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>

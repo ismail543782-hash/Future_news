@@ -198,8 +198,23 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
     }
   }, [effectiveNetwork, effectivePublisherId, effectiveAdSenseSlot]);
 
+  // যদি স্লটটি কনফিগারেশনে অথবা স্টোরেজে বন্ধ (disabled) থাকে
+  if (slotConfig && !slotConfig.enabled && !adOverride) {
+    return null;
+  }
+
   // যদি স্টোরেজে স্লটটি বন্ধ (disabled) থাকে
   if (storedAd && !storedAd.is_enabled) {
+    return null;
+  }
+
+  // যদি Adsterra সক্রিয় থাকে কিন্তু কোড খালি থাকে, ফাঁকা বক্স দেখানোর প্রয়োজন নেই
+  if (effectiveNetwork === 'adsterra' && !rawHtmlCode.trim()) {
+    return null;
+  }
+
+  // যদি Custom ব্যানার থাকে কিন্তু কোনো ছবি বা টাইটেল না থাকে
+  if (effectiveNetwork === 'custom' && (!storedAd || (!storedAd.image_url && !storedAd.title))) {
     return null;
   }
 

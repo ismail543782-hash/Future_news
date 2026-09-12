@@ -927,7 +927,7 @@ export const ArticleEditor: React.FC<ArticleEditorProps> = ({
                 <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] flex items-center justify-center font-bold">
                   F
                 </span>
-                <span>futurenews.netlify.app</span>
+                <span>{window.location.hostname || 'futurenews65.netlify.app'}</span>
                 <span>› news › {slug || 'article-slug'}</span>
               </div>
               <h4 className="text-blue-700 hover:underline text-lg font-medium cursor-pointer leading-snug">

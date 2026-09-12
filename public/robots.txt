@@ -16,4 +16,4 @@ Allow: /
 Disallow: /admin
 
 # XML Sitemap declaration for Google Search Console
-Sitemap: https://futurenews.netlify.app/sitemap.xml
+Sitemap: https://futurenews65.netlify.app/sitemap.xml

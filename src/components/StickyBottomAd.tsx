@@ -12,8 +12,8 @@ export const StickyBottomAd: React.FC = () => {
     return null;
   }
 
-  // If ad is disabled in storage and no override, return null
-  if (ad && !ad.is_enabled) {
+  // If ad does not exist or is disabled in storage, return null
+  if (!ad || !ad.is_enabled) {
     return null;
   }
 
