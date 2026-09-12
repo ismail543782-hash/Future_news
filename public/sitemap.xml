@@ -16,11 +16,59 @@
   <!-- Blogs Section -->
   <url>
     <loc>https://futurenews.netlify.app/blogs</loc>
-    <lastmod>2026-09-09T20:00:00+00:00</lastmod>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="bn" href="https://futurenews.netlify.app/blogs?lang=bn" />
     <xhtml:link rel="alternate" hreflang="en" href="https://futurenews.netlify.app/blogs?lang=en" />
+  </url>
+
+  <!-- Digital Book Publishing & E-Library -->
+  <url>
+    <loc>https://futurenews.netlify.app/books</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="bn" href="https://futurenews.netlify.app/books?lang=bn" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://futurenews.netlify.app/books?lang=en" />
+  </url>
+
+  <!-- Books Detail & Interactive Reader Pages -->
+  <url>
+    <loc>https://futurenews.netlify.app/book/smart-career-and-freelancing-guide-2026</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://futurenews.netlify.app/read/smart-career-and-freelancing-guide-2026</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://futurenews.netlify.app/book/simple-rules-for-a-positive-life</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://futurenews.netlify.app/read/simple-rules-for-a-positive-life</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://futurenews.netlify.app/book/history-of-sonar-bangla-and-liberation-war</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://futurenews.netlify.app/read/history-of-sonar-bangla-and-liberation-war</loc>
+    <lastmod>2026-09-12T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <!-- News Articles -->

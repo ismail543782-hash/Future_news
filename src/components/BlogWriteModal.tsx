@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { BlogPost, Language } from '../types/news';
 import { saveBlog } from '../utils/storage';
 import { autoGenerateSeoFromTitle } from '../utils/seo';
+import { compressImageFile } from '../utils/fileStorage';
 import {
   X,
   Upload,
@@ -15,6 +16,7 @@ import {
   PenTool,
   Tag,
   User,
+  RefreshCw,
 } from 'lucide-react';
 
 interface BlogWriteModalProps {
@@ -76,32 +78,32 @@ export const BlogWriteModal: React.FC<BlogWriteModalProps> = ({
   if (!isOpen) return null;
 
   // Handle single file upload for Featured Image
-  const handleFeaturedFileUpload = (file: File) => {
+  const handleFeaturedFileUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setErrorMsg(language === 'bn' ? 'অনুগ্রহ করে একটি ছবি ফাইল আপলোড করুন (JPG, PNG, WebP)' : 'Please select an image file (JPG, PNG, WebP)');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setFeaturedImage(result);
+    try {
       setErrorMsg('');
-    };
-    reader.readAsDataURL(file);
+      const compressedDataUrl = await compressImageFile(file, 1200, 800, 0.84);
+      setFeaturedImage(compressedDataUrl);
+    } catch {
+      setErrorMsg(language === 'bn' ? 'ছবি প্রসেস করতে সমস্যা হয়েছে।' : 'Failed to process image.');
+    }
   };
 
   // Handle additional photos for gallery
-  const handleAdditionalPhotosUpload = (files: FileList) => {
-    Array.from(files).forEach((file) => {
+  const handleAdditionalPhotosUpload = async (files: FileList) => {
+    for (const file of Array.from(files)) {
       if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          setAdditionalImages((prev) => [...prev, result]);
-        };
-        reader.readAsDataURL(file);
+        try {
+          const compressed = await compressImageFile(file, 1000, 750, 0.82);
+          setAdditionalImages((prev) => [...prev, compressed]);
+        } catch {
+          // ignore individual failure
+        }
       }
-    });
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -299,6 +301,7 @@ export const BlogWriteModal: React.FC<BlogWriteModalProps> = ({
             {imageSourceMode === 'upload' ? (
               <div>
                 <input
+                  id="blog-featured-image-file"
                   type="file"
                   ref={fileInputRef}
                   accept="image/*"
@@ -331,16 +334,13 @@ export const BlogWriteModal: React.FC<BlogWriteModalProps> = ({
                           <CheckCircle className="w-3.5 h-3.5" />
                           {language === 'bn' ? 'ছবি সফলভাবে লোড হয়েছে' : 'Image ready'}
                         </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fileInputRef.current?.click();
-                          }}
-                          className="text-rose-600 underline hover:text-rose-700"
+                        <label
+                          htmlFor="blog-featured-image-file"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-rose-600 underline hover:text-rose-700 font-bold cursor-pointer"
                         >
                           {language === 'bn' ? 'পরিবর্তন করুন' : 'Change photo'}
-                        </button>
+                        </label>
                       </div>
                     </div>
                   ) : (
@@ -356,6 +356,14 @@ export const BlogWriteModal: React.FC<BlogWriteModalProps> = ({
                       <p className="text-[11px] text-stone-500">
                         JPG, PNG, WebP (হাই-রেজোলিউশন ছবি অনুমোদিত)
                       </p>
+                      <label
+                        htmlFor="blog-featured-image-file"
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-xs"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>{language === 'bn' ? 'মোবাইল বা পিসি থেকে ছবি বাছুন' : 'Select Photo from Device'}</span>
+                      </label>
                     </div>
                   )}
                 </div>

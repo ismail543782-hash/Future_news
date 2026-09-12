@@ -107,26 +107,26 @@ export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs,
               <span className="text-xs font-bold">আলাদা URL জেনারেটর</span>
               <CheckCircle className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-lg font-black text-emerald-950">{articles.length + blogs.length} URLs</p>
-            <p className="text-[11px] text-emerald-700">প্রতিটি সংবাদ ও ব্লগের ইউনিক পার্মালিংক সক্রিয়</p>
+            <p className="text-lg font-black text-emerald-950">{articles.length + blogs.length + books.length} URLs</p>
+            <p className="text-[11px] text-emerald-700">প্রতিটি বই, সংবাদ ও ব্লগের ইউনিক সার্চ-অপ্টিমাইজড পার্মালিংক সক্রিয়</p>
           </div>
 
           <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl space-y-1">
             <div className="flex items-center justify-between text-blue-800">
-              <span className="text-xs font-bold">Google News Schema</span>
+              <span className="text-xs font-bold">Google Schema.org</span>
               <CheckCircle className="w-4 h-4 text-blue-600" />
             </div>
-            <p className="text-lg font-black text-blue-950">JSON-LD LD+JSON</p>
-            <p className="text-[11px] text-blue-700">NewsArticle এবং BlogPosting স্কিমা ইনজেকশন কার্যকর</p>
+            <p className="text-lg font-black text-blue-950">JSON-LD Structured</p>
+            <p className="text-[11px] text-blue-700">Book, NewsArticle ও WebSite স্কিমা গুগল ক্রলারের জন্য সক্রিয়</p>
           </div>
 
           <div className="p-4 bg-rose-50/60 border border-rose-200 rounded-xl space-y-1">
             <div className="flex items-center justify-between text-rose-800">
-              <span className="text-xs font-bold">Robots.txt কনফিগ</span>
+              <span className="text-xs font-bold">Robots.txt & Sitemap</span>
               <CheckCircle className="w-4 h-4 text-rose-600" />
             </div>
             <p className="text-lg font-black text-rose-950">Active Crawl</p>
-            <p className="text-[11px] text-rose-700">Googlebot ও সকল ক্রলারের অ্যাক্সেস অনুমোদিত</p>
+            <p className="text-[11px] text-rose-700">Googlebot ও সকল সার্চ ইঞ্জিনের ক্রলিং সম্পূর্ণ উন্মুক্ত</p>
           </div>
 
           <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1">
@@ -135,7 +135,56 @@ export const AdminSeoCenter: React.FC<AdminSeoCenterProps> = ({ articles, blogs,
               <CheckCircle className="w-4 h-4 text-amber-600" />
             </div>
             <p className="text-lg font-black text-amber-950">বাংলা + English</p>
-            <p className="text-[11px] text-amber-700">সোশ্যাল কার্ড ও সার্চ মেটা উভয় ভাষায় সমর্থিত</p>
+            <p className="text-[11px] text-amber-700">সোশ্যাল কার্ড ও সার্চ মেটা উভয় ভাষায় সমৃদ্ধ</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Google Search Indexing Step-by-Step Guidance */}
+      <div className="bg-amber-50/70 border border-amber-300 rounded-xl p-6 shadow-xs space-y-3">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+            <Search className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-stone-900">
+              গুগল সার্চে আপনার সাইট বা বই কেন সাথে সাথে আসে না এবং কীভাবে নিয়ে আসবেন?
+            </h3>
+            <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+              যেকোনো নতুন ওয়েবসাইট বা নতুন প্রকাশিত বই স্বয়ংক্রিয়ভাবে প্রথম দিনেই গুগলের ১ নম্বর পাতায় আসে না। গুগলকে আপনার সাইট সম্পর্কে জানাতে ৩টি সাধারণ ধাপ সম্পন্ন করতে হয়:
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+          <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold flex items-center justify-center">১</span>
+              <h4 className="text-xs font-bold text-stone-800">Search Console এ সাইট যোগ</h4>
+            </div>
+            <p className="text-[11px] text-stone-500 leading-normal">
+              <strong>search.google.com/search-console</strong> এ যান এবং আপনার ডোমেইনটি যোগ করে নিচের ভেরিফিকেশন কোডটি সংরক্ষণ করুন।
+            </p>
+          </div>
+
+          <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold flex items-center justify-center">২</span>
+              <h4 className="text-xs font-bold text-stone-800">সাইটম্যাপ (Sitemap) সাবমিট</h4>
+            </div>
+            <p className="text-[11px] text-stone-500 leading-normal">
+              সার্চ কনসোলের <em>"Sitemaps"</em> অপশনে গিয়ে <strong>sitemap.xml</strong> লিখে Submit করুন। গুগল সাথে সাথে সব পাতা চিনে নেবে।
+            </p>
+          </div>
+
+          <div className="p-3 bg-white rounded-lg border border-amber-200 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold flex items-center justify-center">৩</span>
+              <h4 className="text-xs font-bold text-stone-800">দ্রুত ইনডেক্সিং রিকোয়েস্ট</h4>
+            </div>
+            <p className="text-[11px] text-stone-500 leading-normal">
+              নতুন বই বা খবর পাবলিশ করার পর উপরের সার্চ বারে সেই লিঙ্ক পেস্ট করে <strong>"Request Indexing"</strong> চাপলে ২৪ ঘণ্টার মধ্যে চলে আসবে।
+            </p>
           </div>
         </div>
       </div>

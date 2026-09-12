@@ -21,6 +21,12 @@ import {
   Check,
   AlertCircle,
   ExternalLink,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2,
+  ShieldCheck,
+  Bookmark,
+  Layers,
 } from 'lucide-react';
 import {
   savePdfBlob,
@@ -68,7 +74,11 @@ export const BookEditor: React.FC<BookEditorProps> = ({
   onSave,
   onCancel,
 }) => {
-  const [activeTab, setActiveTab] = useState<'basic' | 'pages' | 'seo'>('basic');
+  // Amazon KDP Publishing Stepper State: 1 = Details, 2 = Manuscript & Cover, 3 = Rights & Publish
+  const [kdpStep, setKdpStep] = useState<1 | 2 | 3>(1);
+  const [showPagesSubEditor, setShowPagesSubEditor] = useState<boolean>(
+    Boolean(book?.pages && book.pages.length > 1)
+  );
 
   const [title, setTitle] = useState(book?.title || '');
   const [author, setAuthor] = useState(book?.author || '');
@@ -278,6 +288,28 @@ export const BookEditor: React.FC<BookEditorProps> = ({
     }
   };
 
+  const handleNextStep = () => {
+    if (kdpStep === 1) {
+      if (!title.trim()) {
+        alert(language === 'bn' ? 'অনুগ্রহ করে বইয়ের শিরোনাম বা নাম লিখুন।' : 'Please enter book title.');
+        return;
+      }
+      if (!author.trim()) {
+        alert(language === 'bn' ? 'অনুগ্রহ করে লেখক বা প্রকাশকের নাম লিখুন।' : 'Please enter author name.');
+        return;
+      }
+      setKdpStep(2);
+    } else if (kdpStep === 2) {
+      setKdpStep(3);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (kdpStep > 1) {
+      setKdpStep((prev) => (prev - 1) as 1 | 2 | 3);
+    }
+  };
+
   // Save Book Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,84 +397,234 @@ export const BookEditor: React.FC<BookEditorProps> = ({
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold">
-                {book
-                  ? language === 'bn'
-                    ? 'বই সম্পাদনা করুন'
-                    : 'Edit Book'
-                  : language === 'bn'
-                  ? 'নতুন বই প্রকাশ করুন (PDF ও পেজ রিডার)'
-                  : 'Publish New Book'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold">
+                  {book
+                    ? language === 'bn'
+                      ? 'বই সম্পাদনা করুন (Amazon KDP স্টাইল)'
+                      : 'Edit Book (Amazon KDP Style)'
+                    : language === 'bn'
+                    ? 'Amazon KDP স্টাইলে বই প্রকাশনা (PDF ও পেজ রিডার)'
+                    : 'Publish Book (Amazon KDP Style)'}
+                </h2>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 text-[10px] font-bold">
+                  KDP WIZARD
+                </span>
+              </div>
               <p className="text-xs text-stone-400">
                 {language === 'bn'
-                  ? 'প্রচ্ছদ, পিডিএফ, অধ্যায় ও সার্চ ইঞ্জিন অপটিমাইজেশন (SEO)'
-                  : 'Cover, PDF link, page content, and SEO metadata'}
+                  ? '৩টি সহজ ধাপে বইয়ের বিবরণ, প্রচ্ছদ ও পান্ডুলিপি আপলোড করে প্রকাশ করুন'
+                  : '3-step sequential workflow: Details, Manuscript & Cover, Rights & Publish'}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onCancel}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {title.trim() && author.trim() && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSaving}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                title={language === 'bn' ? 'যেকোনো ধাপ থেকেই সরাসরি সেভ করুন' : 'Quick Save from any step'}
+              >
+                <Save className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{language === 'bn' ? 'তাত্ক্ষণিক প্রকাশ' : 'Quick Publish'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onCancel}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-stone-200 px-6 bg-stone-50">
+        {/* AMAZON KDP LIVE BOOK SHOWCASE CARD (UP FRONT) */}
+        <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 text-white p-4 sm:p-5 border-b border-stone-800">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            {/* Left: 3D Book perspective cover & live metadata */}
+            <div className="flex items-center gap-4 min-w-0">
+              {/* 3D Realistic Book Mockup with spine & depth */}
+              <div className="relative shrink-0 w-16 sm:w-20 h-24 sm:h-28 rounded-r-md rounded-l-xs overflow-hidden shadow-2xl border-r-2 border-y border-stone-700 bg-stone-950">
+                <img
+                  src={coverImage}
+                  alt={title || 'Book Cover'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80';
+                  }}
+                />
+                {/* Book spine shadow reflection */}
+                <div className="absolute inset-y-0 left-0 w-2 sm:w-2.5 bg-gradient-to-r from-black/70 via-white/20 to-transparent pointer-events-none" />
+                {/* Book page rim edge */}
+                <div className="absolute inset-y-0 right-0 w-1 bg-stone-200 border-l border-stone-400 pointer-events-none" />
+              </div>
+
+              {/* Live Info */}
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    KDP লাইভ প্রিভিউ শোকেস
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
+                    {categoryBn}
+                  </span>
+                </div>
+
+                <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-md">
+                  {title.trim() || (language === 'bn' ? 'আপনার বইয়ের নাম / শিরোনাম' : 'Your Book Title')}
+                </h3>
+
+                <p className="text-xs text-stone-400 truncate">
+                  {language === 'bn' ? 'লেখক / প্রকাশক:' : 'Author:'}{' '}
+                  <span className="text-stone-200 font-medium">
+                    {author.trim() || (language === 'bn' ? 'লেখকের নাম...' : 'Author Name...')}
+                  </span>
+                </p>
+
+                {/* Status Badges */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+                  {pdfFile || hasExistingUploadedPdf ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 font-medium bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
+                      <Check className="w-3 h-3" />
+                      <span>পিডিএফ পান্ডুলিপি সংযুক্ত ({pdfFileName || 'ফাইল'} - {pdfFileSize || 'সংরক্ষিত'})</span>
+                    </span>
+                  ) : pdfUrl.trim() ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 font-medium bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
+                      <Check className="w-3 h-3" />
+                      <span>ওয়েব পিডিএফ লিংক প্রস্তুত</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-amber-400 font-medium bg-amber-950/60 border border-amber-800/60 px-2 py-0.5 rounded">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>পান্ডুলিপি অপেক্ষমান (ধাপ ২ এ আপলোড করুন)</span>
+                    </span>
+                  )}
+
+                  <span className="text-stone-400">
+                    {publishedYear} • ~{readingTime} মিনিট পাঠ
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Progress Indicator */}
+            <div className="hidden md:flex flex-col items-end gap-1 shrink-0">
+              <div className="text-right">
+                <span className="text-[11px] text-stone-400">ধাপ অগ্রগতি:</span>
+                <span className="text-xs font-bold text-rose-400 ml-1.5">
+                  {kdpStep === 1
+                    ? '১. বইয়ের বিবরণ'
+                    : kdpStep === 2
+                    ? '২. পান্ডুলিপি ও প্রচ্ছদ'
+                    : '৩. অধিকার ও প্রকাশনা'}
+                </span>
+              </div>
+              <div className="w-36 h-2 bg-stone-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rose-600 transition-all duration-300"
+                  style={{ width: kdpStep === 1 ? '33%' : kdpStep === 2 ? '66%' : '100%' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Amazon KDP 3-Step Navigation Stepper */}
+        <div className="flex border-b border-stone-200 px-4 sm:px-6 bg-stone-50 overflow-x-auto">
           <button
             type="button"
-            onClick={() => setActiveTab('basic')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'basic'
+            onClick={() => setKdpStep(1)}
+            className={`py-3 px-3 sm:px-5 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+              kdpStep === 1
                 ? 'border-rose-600 text-rose-600 bg-white'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
-            <span>{language === 'bn' ? '১. মৌলিক তথ্য ও কভার' : '1. Basic Info & Cover'}</span>
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                title && author
+                  ? 'bg-emerald-600 text-white'
+                  : kdpStep === 1
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-stone-200 text-stone-700'
+              }`}
+            >
+              {title && author ? '✓' : '১'}
+            </div>
+            <span>{language === 'bn' ? '১. বইয়ের বিবরণ (Details)' : '1. Book Details'}</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('pages')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'pages'
+            onClick={() => setKdpStep(2)}
+            className={`py-3 px-3 sm:px-5 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+              kdpStep === 2
                 ? 'border-rose-600 text-rose-600 bg-white'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <FileText className="w-4 h-4" />
-            <span>
-              {language === 'bn'
-                ? `২. পেজ ও কনটেন্ট (${pages.length} পৃষ্ঠা)`
-                : `2. Pages & Content (${pages.length})`}
-            </span>
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                (pdfFile || hasExistingUploadedPdf || pdfUrl) && coverImage
+                  ? 'bg-emerald-600 text-white'
+                  : kdpStep === 2
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-stone-200 text-stone-700'
+              }`}
+            >
+              {(pdfFile || hasExistingUploadedPdf || pdfUrl) && coverImage ? '✓' : '২'}
+            </div>
+            <span>{language === 'bn' ? '২. পান্ডুলিপি ও প্রচ্ছদ (Manuscript & Cover)' : '2. Manuscript & Cover'}</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('seo')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'seo'
+            onClick={() => setKdpStep(3)}
+            className={`py-3 px-3 sm:px-5 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+              kdpStep === 3
                 ? 'border-rose-600 text-rose-600 bg-white'
                 : 'border-transparent text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Globe className="w-4 h-4" />
-            <span>{language === 'bn' ? '৩. এসইও ও গুগল সার্চ' : '3. SEO & Google Snippet'}</span>
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                kdpStep === 3 ? 'bg-rose-600 text-white' : 'bg-stone-200 text-stone-700'
+              }`}
+            >
+              ৩
+            </div>
+            <span>{language === 'bn' ? '৩. অধিকার ও প্রকাশনা (Rights & Publish)' : '3. Rights & Publish'}</span>
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* TAB 1: BASIC INFO & COVER */}
-          {activeTab === 'basic' && (
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {/* STEP 1: BOOK DETAILS & METADATA */}
+          {kdpStep === 1 && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-rose-50/70 rounded-xl p-4 border border-rose-200/80 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-rose-950 leading-relaxed">
+                  <p className="font-bold">
+                    {language === 'bn'
+                      ? 'ধাপ ১: বইয়ের বিবরণ ও প্রাথমিক তথ্য (Amazon KDP Style)'
+                      : 'Step 1: Book Details & Metadata'}
+                  </p>
+                  <p className="text-rose-800 text-[11px] mt-0.5">
+                    {language === 'bn'
+                      ? 'বইয়ের শিরোনাম, লেখক, ক্যাটাগরি ও সংক্ষিপ্ত পরিচিতি প্রদান করুন।'
+                      : 'Provide book title, author, category and synopsis.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Title */}
                 <div className="md:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-stone-700">
@@ -491,6 +673,95 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                   </select>
                 </div>
 
+                {/* Published Year */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-stone-700">
+                    {language === 'bn' ? 'প্রকাশনার সাল' : 'Published Year'}
+                  </label>
+                  <input
+                    type="text"
+                    value={publishedYear}
+                    onChange={(e) => setPublishedYear(e.target.value)}
+                    placeholder="২০২৬"
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Reading Time */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-stone-700">
+                    {language === 'bn' ? 'পড়ার আনুমানিক সময় (মিনিট)' : 'Estimated Reading Time (min)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={readingTime}
+                    onChange={(e) => setReadingTime(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="md:col-span-2 space-y-1.5">
+                  <label className="text-xs font-bold text-stone-700">
+                    {language === 'bn' ? 'বইয়ের সংক্ষিপ্ত বিবরণ ও ভূমিকা *' : 'Book Description & Synopsis *'}
+                  </label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder={
+                      language === 'bn'
+                        ? 'বইটিতে কী কী বিষয় রয়েছে এবং পাঠকরা কেন পড়বে তার সংক্ষিপ্ত বিবরণ...'
+                        : 'Write a compelling book overview...'
+                    }
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-xs sm:text-sm text-stone-900 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Step 1 Navigation */}
+              <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-4 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors"
+                >
+                  {language === 'bn' ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+                >
+                  <span>{language === 'bn' ? 'পরবর্তী ধাপ: প্রচ্ছদ ও পান্ডুলিপি' : 'Next: Cover & Manuscript'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: MANUSCRIPT & COVER (Amazon KDP Step 2) */}
+          {kdpStep === 2 && (
+            <div className="space-y-6">
+              <div className="bg-amber-50/70 rounded-xl p-4 border border-amber-200/80 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-950 leading-relaxed">
+                  <p className="font-bold">
+                    {language === 'bn'
+                      ? 'ধাপ ২: পান্ডুলিপি ও বইয়ের প্রচ্ছদ (Manuscript & Cover)'
+                      : 'Step 2: Manuscript & Cover'}
+                  </p>
+                  <p className="text-amber-800 text-[11px] mt-0.5">
+                    {language === 'bn'
+                      ? 'মোবাইল বা কম্পিউটার থেকে সরাসরি প্রচ্ছদের ছবি এবং পিডিএফ বই আপলোড করুন।'
+                      : 'Upload cover art and PDF manuscript directly from your mobile or PC.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Cover Image Section */}
                 <div className="space-y-3 md:col-span-2 bg-stone-50/80 p-4 rounded-xl border border-stone-200">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -572,6 +843,7 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                       {coverSourceMode === 'upload' && (
                         <div className="space-y-2">
                           <input
+                            id="book-cover-file-input"
                             type="file"
                             ref={coverInputRef}
                             accept="image/jpeg,image/png,image/webp,image/jpg"
@@ -615,6 +887,14 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                                   ? 'বা এখানে টেনে এনে ছেড়ে দিন (JPEG, PNG, WebP)'
                                   : 'or drag & drop here (JPEG, PNG, WebP)'}
                               </span>
+                              <label
+                                htmlFor="book-cover-file-input"
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-2xs"
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>{language === 'bn' ? 'মোবাইল বা পিসি থেকে ছবি বাছুন' : 'Choose Cover Image'}</span>
+                              </label>
                             </div>
                           </div>
 
@@ -722,6 +1002,7 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                     <div className="space-y-3">
                       {/* Hidden native input */}
                       <input
+                        id="book-pdf-file-input"
                         type="file"
                         ref={pdfInputRef}
                         accept=".pdf,application/pdf"
@@ -821,12 +1102,14 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                                   : 'or drag & drop the .pdf file here (up to 50MB)'}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              className="mt-1 px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors"
+                            <label
+                              htmlFor="book-pdf-file-input"
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold shadow-xs cursor-pointer transition-all"
                             >
-                              {language === 'bn' ? 'ফাইল ব্রাউজ করুন (.pdf)' : 'Browse File (.pdf)'}
-                            </button>
+                              <FileUp className="w-3.5 h-3.5" />
+                              <span>{language === 'bn' ? 'ফাইল ব্রাউজ করুন (.pdf)' : 'Browse File (.pdf)'}</span>
+                            </label>
                           </div>
                         </div>
                       )}
@@ -873,91 +1156,38 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                     </div>
                   )}
                 </div>
-
-                {/* Description */}
-                <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-stone-700">
-                    {language === 'bn' ? 'বইয়ের সংক্ষিপ্ত বিবরণ ও ভূমিকা *' : 'Book Description & Synopsis *'}
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={
-                      language === 'bn'
-                        ? 'বইটিতে কী কী বিষয় রয়েছে এবং পাঠকরা কেন পড়বে তার সংক্ষিপ্ত বিবরণ...'
-                        : 'Write a compelling book overview...'
-                    }
-                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-lg text-xs sm:text-sm text-stone-900 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* Additional Metadata */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-stone-700">
-                    {language === 'bn' ? 'প্রকাশনার সাল' : 'Published Year'}
-                  </label>
-                  <input
-                    type="text"
-                    value={publishedYear}
-                    onChange={(e) => setPublishedYear(e.target.value)}
-                    placeholder="২০২৬"
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-stone-700">
-                    {language === 'bn' ? 'পড়ার আনুমানিক সময় (মিনিট)' : 'Estimated Reading Time (min)'}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={readingTime}
-                    onChange={(e) => setReadingTime(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
-                  />
-                </div>
-
-                {/* Toggles */}
-                <div className="md:col-span-2 flex flex-wrap items-center gap-6 pt-2 border-t border-stone-100">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-800">
-                    <input
-                      type="checkbox"
-                      checked={isPublished}
-                      onChange={(e) => setIsPublished(e.target.checked)}
-                      className="w-4 h-4 text-rose-600 rounded border-stone-300 focus:ring-rose-500"
-                    />
-                    <span>{language === 'bn' ? 'সরাসরি ওয়েবসাইটে প্রকাশ করুন (Live)' : 'Publish to Website'}</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-800">
-                    <input
-                      type="checkbox"
-                      checked={isFeatured}
-                      onChange={(e) => setIsFeatured(e.target.checked)}
-                      className="w-4 h-4 text-amber-600 rounded border-stone-300 focus:ring-amber-500"
-                    />
-                    <span>{language === 'bn' ? 'বিশেষ নির্বাচিত বই (Featured)' : 'Feature on Top'}</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-800">
-                    <input
-                      type="checkbox"
-                      checked={allowDownload}
-                      onChange={(e) => setAllowDownload(e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
-                    />
-                    <span>{language === 'bn' ? 'পাঠকদের ফ্রি ডাউনলোড অনুমোদন করুন' : 'Allow Free Download'}</span>
-                  </label>
-                </div>
               </div>
-            </div>
-          )}
 
-          {/* TAB 2: PAGE-BY-PAGE CONTENT EDITOR */}
-          {activeTab === 'pages' && (
+              {/* Optional Interactive Page-by-Page Content Section */}
+              <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-rose-600" />
+                      <span>{language === 'bn' ? 'ডিজিটাল পেজ-বাই-পেজ রিডার (ঐচ্ছিক)' : 'Digital Page-by-Page Reader (Optional)'}</span>
+                      <span className="text-[10px] bg-stone-200 text-stone-700 px-2 py-0.5 rounded-full font-bold">
+                        {pages.length} {language === 'bn' ? 'পৃষ্ঠা' : 'pages'}
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-stone-500 mt-0.5">
+                      {language === 'bn'
+                        ? 'পিডিএফ ফাইলের পাশাপাশি যদি ডিজিটাল অধ্যায় ও পৃষ্ঠা যুক্ত করতে চান, তবে পেজ এডিটর ব্যবহার করুন।'
+                        : 'Optionally compose digital chapters for in-browser interactive page-flipping.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPagesSubEditor(!showPagesSubEditor)}
+                    className="self-start sm:self-auto px-3.5 py-1.5 bg-white hover:bg-stone-100 text-stone-800 text-xs font-bold rounded-lg border border-stone-300 shadow-2xs transition-colors"
+                  >
+                    {showPagesSubEditor
+                      ? (language === 'bn' ? '▲ পেজ এডিটর সঙ্কুচিত করুন' : '▲ Collapse Pages')
+                      : (language === 'bn' ? '▼ পেজ এডিটর খুলুন' : '▼ Expand Pages')}
+                  </button>
+                </div>
+
+                {showPagesSubEditor && (
+                  <div className="mt-4 pt-4 border-t border-stone-200 space-y-4">
             <div className="space-y-6">
               <div className="bg-amber-50 rounded-xl p-4 border border-amber-200/80 flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -1085,11 +1315,112 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+              {/* Step 2 Navigation */}
+              <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>{language === 'bn' ? 'পূর্ববর্তী ধাপ: বইয়ের বিবরণ' : 'Back: Book Details'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+                >
+                  <span>{language === 'bn' ? 'পরবর্তী ধাপ: অধিকার ও প্রকাশনা' : 'Next: Rights & Publish'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           )}
 
-          {/* TAB 3: SEO & GOOGLE SEARCH SNIPPET */}
-          {activeTab === 'seo' && (
+          {/* STEP 3: RIGHTS, SEO & FINAL PUBLISH (Amazon KDP Step 3) */}
+          {kdpStep === 3 && (
             <div className="space-y-6">
+              <div className="bg-emerald-50/70 rounded-xl p-4 border border-emerald-200/80 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-950 leading-relaxed">
+                  <p className="font-bold">
+                    {language === 'bn'
+                      ? 'ধাপ ৩: অধিকার, এসইও ও প্রকাশনা (Rights, SEO & Publishing)'
+                      : 'Step 3: Rights, SEO & Publishing'}
+                  </p>
+                  <p className="text-emerald-800 text-[11px] mt-0.5">
+                    {language === 'bn'
+                      ? 'বইটির প্রকাশনার স্থিতি, ডাউনলোড অনুমোদন এবং গুগল সার্চ রেজাল্টে সহজে খুঁজে পাওয়ার জন্য এসইও কনফিগার করুন।'
+                      : 'Configure publication status, free download rights, and SEO metadata for Google search ranking.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Rights & Distribution Toggles */}
+              <div className="bg-white p-4 sm:p-5 rounded-xl border border-stone-200 shadow-xs space-y-3">
+                <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-rose-600" />
+                  <span>{language === 'bn' ? 'প্রকাশনা অধিকার ও প্রদর্শন সেটিংস' : 'Rights & Distribution'}</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                  <label className="flex items-start gap-2.5 p-3 rounded-lg border border-stone-200 bg-stone-50/50 hover:bg-stone-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={isPublished}
+                      onChange={(e) => setIsPublished(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-rose-600 rounded border-stone-300 focus:ring-rose-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-stone-900 block">
+                        {language === 'bn' ? 'সরাসরি লাইভ প্রকাশ' : 'Publish Live'}
+                      </span>
+                      <span className="text-[11px] text-stone-500">
+                        {language === 'bn' ? 'পাঠকরা তাৎক্ষণিক অনলাইনে পড়তে পারবে' : 'Visible to public readers'}
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-lg border border-stone-200 bg-stone-50/50 hover:bg-stone-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={isFeatured}
+                      onChange={(e) => setIsFeatured(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-amber-600 rounded border-stone-300 focus:ring-amber-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-stone-900 block">
+                        {language === 'bn' ? 'নির্বাচিত বই (Featured)' : 'Feature on Top'}
+                      </span>
+                      <span className="text-[11px] text-stone-500">
+                        {language === 'bn' ? 'বই কর্নারের শীর্ষে হাইলাইট করা হবে' : 'Highlight in showcase'}
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-3 rounded-lg border border-stone-200 bg-stone-50/50 hover:bg-stone-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={allowDownload}
+                      onChange={(e) => setAllowDownload(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-stone-900 block">
+                        {language === 'bn' ? 'ফ্রি ডাউনলোড অনুমোদন' : 'Allow Free Download'}
+                      </span>
+                      <span className="text-[11px] text-stone-500">
+                        {language === 'bn' ? 'পাঠকরা অফলাইনে পড়ার জন্য পিডিএফ নামাতে পারবে' : 'Readers can save PDF offline'}
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* SMART SEO & GOOGLE SERP PREVIEW */}
               <div className="flex items-center justify-between bg-emerald-50 rounded-xl p-4 border border-emerald-200">
                 <div>
                   <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
@@ -1179,40 +1510,111 @@ export const BookEditor: React.FC<BookEditorProps> = ({
                     className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-900 focus:bg-white focus:ring-1 focus:ring-rose-500 focus:outline-none"
                   />
                 </div>
+
+                {/* Amazon KDP Style Pre-Flight Quality Checklist */}
+                <div className="bg-stone-50 rounded-xl p-4 border border-stone-200 space-y-3">
+                  <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      {language === 'bn'
+                        ? 'অ্যামাজন কেডিপি স্টাইল প্রি-ফ্লাইট কোয়ালিটি চেকলিস্ট'
+                        : 'Amazon KDP Pre-Flight Quality Checklist'}
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-stone-200">
+                      <CheckCircle
+                        className={`w-4 h-4 shrink-0 ${
+                          title.trim() && author.trim() ? 'text-emerald-600' : 'text-stone-300'
+                        }`}
+                      />
+                      <span className={title.trim() && author.trim() ? 'text-stone-800 font-medium' : 'text-stone-400'}>
+                        {language === 'bn' ? 'বইয়ের শিরোনাম ও লেখক তথ্য সম্পূর্ণ' : 'Title & author provided'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-stone-200">
+                      <CheckCircle
+                        className={`w-4 h-4 shrink-0 ${coverImage ? 'text-emerald-600' : 'text-amber-500'}`}
+                      />
+                      <span className={coverImage ? 'text-stone-800 font-medium' : 'text-amber-700'}>
+                        {language === 'bn' ? 'বইয়ের প্রচ্ছদ ছবি সংযুক্ত' : 'Cover image attached'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-stone-200">
+                      <CheckCircle
+                        className={`w-4 h-4 shrink-0 ${
+                          pdfFile || hasExistingUploadedPdf || pdfUrl || pages.length > 0
+                            ? 'text-emerald-600'
+                            : 'text-amber-500'
+                        }`}
+                      />
+                      <span
+                        className={
+                          pdfFile || hasExistingUploadedPdf || pdfUrl || pages.length > 0
+                            ? 'text-stone-800 font-medium'
+                            : 'text-amber-700'
+                        }
+                      >
+                        {language === 'bn' ? 'পিডিএফ পান্ডুলিপি বা পেজ প্রস্তুত' : 'PDF manuscript or pages ready'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-stone-200">
+                      <CheckCircle
+                        className={`w-4 h-4 shrink-0 ${
+                          metaTitle && metaDescription ? 'text-emerald-600' : 'text-stone-400'
+                        }`}
+                      />
+                      <span className={metaTitle && metaDescription ? 'text-stone-800 font-medium' : 'text-stone-400'}>
+                        {language === 'bn' ? 'গুগল সার্চ ও সোশ্যাল মেটাডাটা অপটিমাইজড' : 'SEO metadata optimized'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3 Navigation & Final Publish */}
+              <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-3.5 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors"
+                  >
+                    {language === 'bn' ? 'বাতিল' : 'Cancel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrevStep}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>{language === 'bn' ? 'পূর্ববর্তী ধাপ' : 'Back'}</span>
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>{language === 'bn' ? 'সংরক্ষণ ও আপলোড হচ্ছে...' : 'Saving & Publishing...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>{language === 'bn' ? 'বই সংরক্ষণ ও প্রকাশ করুন' : 'Save & Publish Book'}</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
-
-          {/* Action Footer */}
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-stone-300 rounded-lg text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors"
-            >
-              {language === 'bn' ? 'বাতিল' : 'Cancel'}
-            </button>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>{language === 'bn' ? 'সংরক্ষণ ও আপলোড হচ্ছে...' : 'Saving & Uploading...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>{language === 'bn' ? 'বই সংরক্ষণ ও প্রকাশ করুন' : 'Save & Publish Book'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </form>
       </div>
 

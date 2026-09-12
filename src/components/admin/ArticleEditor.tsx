@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Article, Category, Author } from '../../types/news';
 import { generateSlug, autoGenerateSeoFromTitle } from '../../utils/seo';
+import { compressImageFile } from '../../utils/fileStorage';
 import {
   Sparkles,
   Save,
@@ -14,6 +15,11 @@ import {
   TrendingUp,
   Star,
   DollarSign,
+  Upload,
+  Camera,
+  Trash2,
+  RefreshCw,
+  Check,
 } from 'lucide-react';
 
 interface ArticleEditorProps {
@@ -70,6 +76,58 @@ export const ArticleEditor: React.FC<ArticleEditorProps> = ({
 
   const [activeTab, setActiveTab] = useState<'content' | 'seo' | 'preview'>('content');
   const [notification, setNotification] = useState('');
+
+  // Image Upload State (Direct from Mobile Camera/Gallery or Computer)
+  const [imageSourceMode, setImageSourceMode] = useState<'upload' | 'url' | 'preset'>('upload');
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [uploadedImageInfo, setUploadedImageInfo] = useState<{ name: string; size: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileSelect = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('শুধুমাত্র ছবি ফাইল (JPG, PNG, WebP) নির্বাচন করুন।');
+      return;
+    }
+    try {
+      setIsCompressingImage(true);
+      const compressedDataUrl = await compressImageFile(file, 1200, 800, 0.84);
+      setFeaturedImage(compressedDataUrl);
+      setUploadedImageInfo({
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+      });
+      setNotification('মোবাইল/কম্পিউটার থেকে ছবি সফলভাবে যুক্ত ও অপ্টিমাইজ করা হয়েছে!');
+      setTimeout(() => setNotification(''), 3500);
+    } catch (err) {
+      console.error('Image compression error:', err);
+      alert('ছবি আপলোডে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    } finally {
+      setIsCompressingImage(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageFileSelect(e.dataTransfer.files[0]);
+    }
+  };
 
   // 1-Click Auto SEO Generator
   const handleAutoGenerateSeo = () => {
@@ -375,48 +433,208 @@ export const ArticleEditor: React.FC<ArticleEditorProps> = ({
               </div>
             </div>
 
-            {/* Featured Image URL & Quick Presets */}
-            <div>
-              <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1">
-                ফিচারড ইমেজের ইউআরএল (Featured Image URL)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  required
-                  placeholder="https://images.unsplash.com/..."
-                  value={featuredImage}
-                  onChange={(e) => setFeaturedImage(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
+            {/* Featured Image Selector (Direct Mobile/PC Upload, URL, Presets) */}
+            <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Camera className="w-4 h-4 text-rose-600" />
+                  <span>ফিচারড ইমেজ / প্রধান ছবি (Featured Image) *</span>
+                </label>
 
-              {/* Quick Image Presets */}
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[11px] font-semibold text-stone-600">নমুনা ছবি:</span>
-                {presets.map((p) => (
+                {/* Mode Selector Tabs */}
+                <div className="inline-flex p-1 bg-white border border-stone-200 rounded-lg text-xs font-semibold">
                   <button
-                    key={p.label}
                     type="button"
-                    onClick={() => setFeaturedImage(p.url)}
-                    className="text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 py-0.5 rounded transition-colors"
+                    onClick={() => setImageSourceMode('upload')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md transition-colors ${
+                      imageSourceMode === 'upload'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
                   >
-                    {p.label}
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>সরাসরি আপলোড (মোবাইল / পিসি)</span>
                   </button>
-                ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setImageSourceMode('url')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md transition-colors ${
+                      imageSourceMode === 'url'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>ছবির লিঙ্ক (URL)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setImageSourceMode('preset')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-md transition-colors ${
+                      imageSourceMode === 'preset'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>নমুনা ছবি</span>
+                  </button>
+                </div>
               </div>
 
+              {/* MODE 1: Direct File Upload */}
+              {imageSourceMode === 'upload' && (
+                <div className="space-y-3">
+                  <input
+                    id="article-featured-image-file"
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={(e) => e.target.files?.[0] && handleImageFileSelect(e.target.files[0])}
+                    className="hidden"
+                  />
+
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-5 sm:p-6 text-center cursor-pointer transition-all ${
+                      isDraggingImage
+                        ? 'border-rose-500 bg-rose-50/50 scale-[0.99]'
+                        : featuredImage && !featuredImage.startsWith('http')
+                        ? 'border-emerald-300 bg-emerald-50/20'
+                        : 'border-stone-300 hover:border-rose-400 bg-white'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-stone-800">
+                          মোবাইল ক্যামেরা বা মেমোরি / কম্পিউটার থেকে ছবি সিলেক্ট করুন
+                        </p>
+                        <p className="text-xs text-stone-500 mt-0.5">
+                          ক্লিক করে ফাইল বাছুন অথবা ছবি এখানে টেনে এনে ছেড়ে দিন (JPG, PNG, WebP)
+                        </p>
+                      </div>
+                      <label
+                        htmlFor="article-featured-image-file"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-lg text-xs font-bold cursor-pointer transition-all shadow-xs"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>ডিভাইস থেকে ছবি আপলোড করুন</span>
+                      </label>
+                      <span className="inline-block bg-stone-100 text-stone-700 text-[11px] font-semibold px-3 py-1 rounded-full">
+                        ছবি স্বয়ংক্রিয়ভাবে দ্রুত লোডিংয়ের জন্য অপ্টিমাইজড হবে
+                      </span>
+                    </div>
+                  </div>
+
+                  {isCompressingImage && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-800 font-semibold">
+                      <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+                      <span>ছবি প্রসেস ও অপ্টিমাইজ করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</span>
+                    </div>
+                  )}
+
+                  {uploadedImageInfo && (
+                    <div className="flex items-center justify-between text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg font-medium">
+                      <div className="flex items-center gap-2 truncate">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="truncate">সংযুক্ত ফাইল: <strong>{uploadedImageInfo.name}</strong> ({uploadedImageInfo.size})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-rose-600 hover:text-rose-800 font-bold shrink-0 ml-2"
+                      >
+                        পরিবর্তন
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODE 2: Image URL */}
+              {imageSourceMode === 'url' && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/photo-..."
+                      value={featuredImage.startsWith('data:') ? '' : featuredImage}
+                      onChange={(e) => {
+                        setFeaturedImage(e.target.value);
+                        setUploadedImageInfo(null);
+                      }}
+                      className="flex-1 px-3 py-2 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 bg-white"
+                    />
+                  </div>
+                  <p className="text-[11px] text-stone-500">
+                    ইন্টারনেটের যেকোনো পাবলিক ছবির সরাসরি লিংক এখানে পেস্ট করতে পারেন।
+                  </p>
+                </div>
+              )}
+
+              {/* MODE 3: Sample Presets */}
+              {imageSourceMode === 'preset' && (
+                <div className="space-y-2">
+                  <p className="text-xs text-stone-600 font-medium">ক্যাটাগরি ভিত্তিক নমুনা ছবি এক ক্লিকে সিলেক্ট করুন:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {presets.map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setFeaturedImage(p.url);
+                          setUploadedImageInfo(null);
+                        }}
+                        className={`p-2 text-left rounded-lg border text-xs font-semibold transition-all ${
+                          featuredImage === p.url
+                            ? 'border-rose-600 bg-rose-50 text-rose-700'
+                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="block truncate">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Preview Card */}
               {featuredImage && (
-                <div className="mt-3 relative w-full h-44 rounded-lg overflow-hidden border border-stone-200 bg-stone-100">
+                <div className="mt-3 relative w-full h-48 sm:h-56 rounded-xl overflow-hidden border border-stone-200 bg-stone-100 group shadow-xs">
                   <img
                     src={featuredImage}
                     alt="Featured preview"
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                  <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
-                    লাইভ প্রিভিউ
-                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3">
+                    <span className="bg-rose-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-md backdrop-blur-xs flex items-center gap-1">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <span>লাইভ ছবি প্রিভিউ</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeaturedImage('');
+                        setUploadedImageInfo(null);
+                      }}
+                      className="bg-black/70 hover:bg-rose-600 text-white p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-medium"
+                      title="ছবি মুছে ফেলুন"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>রিমুভ</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
