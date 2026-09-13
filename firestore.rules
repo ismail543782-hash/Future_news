@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Test collection for initial connectivity test
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Articles: Anyone can read published news, anyone can write/publish news for instant global sync
+    match /articles/{articleId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Books: Anyone can read books, publishing syncs across all readers
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Blogs: Anyone can read blogs, editorial sync
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Breaking news: Public read & real-time update
+    match /breaking_news/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Advertisements: Anyone can read, admin can update ad codes and banners
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Site Analytics, Live Visitor Counters & Daily Page Views
+    match /analytics/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /pageviews/{viewId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Global site settings (AdSense, verification keys, weather defaults)
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Comments: Visitors can read and post comments
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if request.resource.data.content is string && request.resource.data.content.size() > 0;
+      allow update, delete: if true;
+    }
+  }
+}

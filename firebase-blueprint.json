@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "Article": {
+      "title": "Article",
+      "description": "Published news articles and editorial content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "category_id": { "type": "string" },
+        "author_id": { "type": "string" },
+        "featured_image": { "type": "string" },
+        "status": { "type": "string" },
+        "is_featured": { "type": "boolean" },
+        "is_breaking": { "type": "boolean" },
+        "is_trending": { "type": "boolean" },
+        "is_sponsored": { "type": "boolean" },
+        "views": { "type": "number" },
+        "reading_time_minutes": { "type": "number" },
+        "published_at": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "slug": { "type": "string" },
+        "title_bn": { "type": "string" },
+        "title_en": { "type": "string" },
+        "summary_bn": { "type": "string" },
+        "summary_en": { "type": "string" },
+        "content_bn": { "type": "string" },
+        "content_en": { "type": "string" }
+      },
+      "required": ["id", "slug", "title_bn", "content_bn", "published_at"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Digital books in the e-library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "slug": { "type": "string" },
+        "category": { "type": "string" },
+        "category_bn": { "type": "string" },
+        "cover_image": { "type": "string" },
+        "description": { "type": "string" },
+        "total_pages": { "type": "number" },
+        "reading_time_minutes": { "type": "number" },
+        "language": { "type": "string" },
+        "is_published": { "type": "boolean" },
+        "views_count": { "type": "number" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "title", "author", "slug", "description", "is_published"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Editorial blogs and community opinion columns",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title_bn": { "type": "string" },
+        "title_en": { "type": "string" },
+        "summary_bn": { "type": "string" },
+        "summary_en": { "type": "string" },
+        "content_bn": { "type": "string" },
+        "content_en": { "type": "string" },
+        "featured_image": { "type": "string" },
+        "author_name": { "type": "string" },
+        "category_name_bn": { "type": "string" },
+        "category_name_en": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string" },
+        "published_at": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "slug", "title_bn", "content_bn", "status"]
+    },
+    "BreakingNews": {
+      "title": "BreakingNews",
+      "description": "Real-time ticker breaking items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title_bn": { "type": "string" },
+        "title_en": { "type": "string" },
+        "priority": { "type": "number" },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "title_bn", "is_active"]
+    },
+    "Advertisement": {
+      "title": "Advertisement",
+      "description": "Configured advertisements for header, sidebar, bottom, etc.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "slot": { "type": "string" },
+        "type": { "type": "string" },
+        "image_url": { "type": "string" },
+        "target_url": { "type": "string" },
+        "sponsor_name": { "type": "string" },
+        "code_html": { "type": "string" },
+        "is_enabled": { "type": "boolean" },
+        "impressions": { "type": "number" },
+        "clicks": { "type": "number" }
+      },
+      "required": ["id", "slot", "type", "is_enabled"]
+    },
+    "AnalyticsSummary": {
+      "title": "AnalyticsSummary",
+      "description": "Real aggregated analytics summary document",
+      "type": "object",
+      "properties": {
+        "totalVisitors": { "type": "number" },
+        "totalArticleViews": { "type": "number" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["totalVisitors", "totalArticleViews"]
+    }
+  },
+  "firestore": {
+    "/articles/{articleId}": {
+      "entity": "Article",
+      "description": "Collection of all news articles, readable by all visitors and editable by admin"
+    },
+    "/books/{bookId}": {
+      "entity": "Book",
+      "description": "Collection of all published e-books, readable by all visitors and editable by admin"
+    },
+    "/blogs/{blogId}": {
+      "entity": "BlogPost",
+      "description": "Collection of all blog posts, readable by all visitors and editable by admin"
+    },
+    "/breaking_news/{itemId}": {
+      "entity": "BreakingNews",
+      "description": "Collection of breaking ticker items, readable by all visitors"
+    },
+    "/ads/{adId}": {
+      "entity": "Advertisement",
+      "description": "Centralized live advertisements for all visitors"
+    },
+    "/analytics/{docId}": {
+      "entity": "AnalyticsSummary",
+      "description": "Real-time live traffic metrics across all devices"
+    }
+  }
+}

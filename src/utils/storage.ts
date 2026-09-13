@@ -2,6 +2,20 @@ import { Article, BreakingNews, Advertisement, Comment, Category, Author, Activi
 import { INITIAL_ARTICLES, INITIAL_BREAKING_NEWS, INITIAL_ADS, INITIAL_CATEGORIES, INITIAL_AUTHORS, INITIAL_BLOGS, INITIAL_EDITIONS } from '../data/initialData';
 import { INITIAL_BOOKS } from '../data/initialBooks';
 import { deletePdfBlob } from './fileStorage';
+import {
+  saveArticleToCloud,
+  deleteArticleFromCloud,
+  saveBookToCloud,
+  deleteBookFromCloud,
+  saveBlogToCloud,
+  deleteBlogFromCloud,
+  saveBreakingToCloud,
+  deleteBreakingFromCloud,
+  saveAdToCloud,
+  deleteAdFromCloud,
+  incrementArticleViewInCloud,
+  recordGlobalPageViewToCloud,
+} from '../services/firestoreSync';
 
 const ARTICLES_KEY = 'fn_articles_v1';
 const BREAKING_KEY = 'fn_breaking_v1';
@@ -98,19 +112,27 @@ export function saveArticle(article: Article): void {
   const articles = getArticles();
   const index = articles.findIndex((a) => a.id === article.id);
   let updated: Article[];
+  const finalArticle = {
+    ...article,
+    updated_at: new Date().toISOString(),
+  };
+
   if (index >= 0) {
     updated = [...articles];
-    updated[index] = { ...article, updated_at: new Date().toISOString() };
+    updated[index] = finalArticle;
     logActivity('Article Updated', `Updated article: ${article.title_bn || article.title_en}`);
   } else {
-    updated = [article, ...articles];
+    updated = [finalArticle, ...articles];
     logActivity('Article Created', `Published new article: ${article.title_bn || article.title_en}`);
   }
   localStorage.setItem(ARTICLES_KEY, JSON.stringify(updated));
 
+  // Sync with Cloud Firestore for global visibility across all devices
+  saveArticleToCloud(finalArticle).catch((err) => console.error('Cloud save article failed:', err));
+
   // If marked as breaking, ensure it is in breaking list
   if (article.is_breaking) {
-    syncBreakingNewsWithArticle(article);
+    syncBreakingNewsWithArticle(finalArticle);
   }
   notifyDataChange('articles');
 }
@@ -120,6 +142,10 @@ export function deleteArticle(id: string): void {
   const target = articles.find((a) => a.id === id);
   const filtered = articles.filter((a) => a.id !== id);
   localStorage.setItem(ARTICLES_KEY, JSON.stringify(filtered));
+
+  // Delete from Cloud Firestore
+  deleteArticleFromCloud(id).catch((err) => console.error('Cloud delete article failed:', err));
+
   if (target) {
     logActivity('Article Deleted', `Deleted article: ${target.title_bn || target.title_en}`);
   }
@@ -148,6 +174,9 @@ export function incrementArticleViews(id: string): void {
       art.views = (art.views || 0) + 1;
       localStorage.setItem(ARTICLES_KEY, JSON.stringify(articles));
       recordPageView('article', art.id, art.slug, art.title_bn || art.title_en);
+
+      // Cloud real-time atomic increment
+      incrementArticleViewInCloud(id).catch(console.warn);
 
       // Increment live impressions for active ad slots
       const ads = getAdvertisements();
@@ -194,12 +223,16 @@ export function saveBreakingNews(item: BreakingNews): void {
     updated = [item, ...list];
   }
   localStorage.setItem(BREAKING_KEY, JSON.stringify(updated));
+  saveBreakingToCloud(item).catch((err) => console.error('Cloud save breaking failed:', err));
+  notifyDataChange('breaking');
 }
 
 export function deleteBreakingNews(id: string): void {
   const list = getBreakingNews();
   const filtered = list.filter((i) => i.id !== id);
   localStorage.setItem(BREAKING_KEY, JSON.stringify(filtered));
+  deleteBreakingFromCloud(id).catch((err) => console.error('Cloud delete breaking failed:', err));
+  notifyDataChange('breaking');
 }
 
 function syncBreakingNewsWithArticle(article: Article) {
@@ -227,7 +260,50 @@ export function getAdvertisements(): Advertisement[] {
       localStorage.setItem(ADS_KEY, JSON.stringify(INITIAL_ADS));
       return INITIAL_ADS;
     }
-    return JSON.parse(raw);
+    const parsed: Advertisement[] = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const existingSlots = new Set(parsed.map((a) => a.slot));
+      let needsUpdate = false;
+      const merged = parsed.map((a) => {
+        // If an ad previously had no image or target url, attach fallback from INITIAL_ADS
+        const init = INITIAL_ADS.find((i) => i.slot === a.slot);
+        if (init) {
+          let modified = false;
+          const updated = { ...a };
+          if (!updated.image_url && init.image_url) {
+            updated.image_url = init.image_url;
+            modified = true;
+          }
+          if (!updated.target_url && init.target_url) {
+            updated.target_url = init.target_url;
+            modified = true;
+          }
+          if (updated.slot === 'in_article' && !updated.is_enabled) {
+            updated.is_enabled = true;
+            modified = true;
+          }
+          if (modified) {
+            needsUpdate = true;
+            return updated;
+          }
+        }
+        return a;
+      });
+
+      // Add any completely missing slots from INITIAL_ADS
+      INITIAL_ADS.forEach((initAd) => {
+        if (!existingSlots.has(initAd.slot)) {
+          merged.push(initAd);
+          needsUpdate = true;
+        }
+      });
+
+      if (needsUpdate) {
+        localStorage.setItem(ADS_KEY, JSON.stringify(merged));
+      }
+      return merged;
+    }
+    return INITIAL_ADS;
   } catch {
     return INITIAL_ADS;
   }
@@ -240,7 +316,7 @@ export function getAdBySlot(slot: string): Advertisement | undefined {
 
 export function saveAdvertisement(ad: Advertisement): void {
   const ads = getAdvertisements();
-  const index = ads.findIndex((a) => a.id === ad.id);
+  const index = ads.findIndex((a) => a.id === ad.id || a.slot === ad.slot);
   let updated: Advertisement[];
   if (index >= 0) {
     updated = [...ads];
@@ -249,7 +325,19 @@ export function saveAdvertisement(ad: Advertisement): void {
     updated = [...ads, ad];
   }
   localStorage.setItem(ADS_KEY, JSON.stringify(updated));
+  // Sync to Cloud Firestore in real time
+  saveAdToCloud(ad).catch((err) => console.warn('Cloud ad save notice:', err));
   logActivity('Advertisement Updated', `Configured ad slot: ${ad.title}`);
+  notifyDataChange('ads');
+}
+
+export function deleteAdvertisement(id: string): void {
+  const ads = getAdvertisements();
+  const updated = ads.filter((a) => a.id !== id);
+  localStorage.setItem(ADS_KEY, JSON.stringify(updated));
+  deleteAdFromCloud(id).catch((err) => console.warn('Cloud ad delete notice:', err));
+  logActivity('Advertisement Deleted', `Removed ad: ${id}`);
+  notifyDataChange('ads');
 }
 
 export function recordAdImpression(id: string): void {
@@ -543,15 +631,21 @@ export function saveBlog(blog: BlogPost): void {
   const blogs = getBlogs();
   const index = blogs.findIndex((b) => b.id === blog.id);
   let updated: BlogPost[];
+  const finalBlog = {
+    ...blog,
+    updated_at: new Date().toISOString(),
+  };
+
   if (index >= 0) {
     updated = [...blogs];
-    updated[index] = { ...blog, updated_at: new Date().toISOString() };
+    updated[index] = finalBlog;
     logActivity('Blog Updated', `Updated blog: ${blog.title_bn || blog.title_en}`);
   } else {
-    updated = [blog, ...blogs];
+    updated = [finalBlog, ...blogs];
     logActivity('Blog Created', `Published blog post: ${blog.title_bn || blog.title_en}`);
   }
   localStorage.setItem(BLOGS_KEY, JSON.stringify(updated));
+  saveBlogToCloud(finalBlog).catch((err) => console.error('Cloud save blog failed:', err));
   notifyDataChange('blogs');
 }
 
@@ -560,6 +654,7 @@ export function deleteBlog(id: string): void {
   const target = blogs.find((b) => b.id === id);
   const filtered = blogs.filter((b) => b.id !== id);
   localStorage.setItem(BLOGS_KEY, JSON.stringify(filtered));
+  deleteBlogFromCloud(id).catch((err) => console.error('Cloud delete blog failed:', err));
   if (target) {
     logActivity('Blog Deleted', `Deleted blog: ${target.title_bn || target.title_en}`);
   }
@@ -715,6 +810,10 @@ export function recordPageView(
     // Keep the most recent 600 records to maintain high performance
     const updated = [record, ...list.slice(0, 599)];
     localStorage.setItem(PAGEVIEWS_KEY, JSON.stringify(updated));
+
+    // Also push to Cloud Firestore global collection asynchronously
+    recordGlobalPageViewToCloud(type, contentId, title, record.device).catch(console.warn);
+
     notifyDataChange('analytics');
   } catch (e) {
     console.error('Failed to log pageview', e);
@@ -964,14 +1063,22 @@ export function saveBook(book: Book): void {
   const books = getBooks();
   const index = books.findIndex((b) => b.id === book.id);
   let updated: Book[];
+  const finalBook = {
+    ...book,
+    created_at: book.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
   if (index >= 0) {
     updated = [...books];
-    updated[index] = { ...book, updated_at: new Date().toISOString() };
+    updated[index] = finalBook;
   } else {
-    updated = [{ ...book, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, ...books];
+    updated = [finalBook, ...books];
   }
   localStorage.setItem(BOOKS_KEY, JSON.stringify(updated));
+  saveBookToCloud(finalBook).catch((err) => console.error('Cloud save book failed:', err));
   logActivity('Book Saved', `বই প্রকাশ/আপডেট করা হয়েছে: ${book.title}`);
+  notifyDataChange('books');
 }
 
 export function deleteBook(id: string): void {
@@ -979,8 +1086,10 @@ export function deleteBook(id: string): void {
   const book = books.find((b) => b.id === id);
   const updated = books.filter((b) => b.id !== id);
   localStorage.setItem(BOOKS_KEY, JSON.stringify(updated));
+  deleteBookFromCloud(id).catch((err) => console.error('Cloud delete book failed:', err));
   deletePdfBlob(id).catch(() => {});
   logActivity('Book Deleted', `বই মুছে ফেলা হয়েছে: ${book?.title || id}`);
+  notifyDataChange('books');
 }
 
 export function incrementBookViews(id: string): void {

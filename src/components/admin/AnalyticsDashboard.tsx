@@ -7,6 +7,7 @@ import {
   RealAnalyticsData,
   addStorageListener,
 } from '../../utils/storage';
+import { subscribeToGlobalAnalytics, CloudAnalyticsSummary } from '../../services/firestoreSync';
 import {
   Eye,
   FileText,
@@ -65,15 +66,35 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     setTimeout(() => setIsRefreshing(false), 400);
   };
 
-  // Subscribe to live storage changes so views and actions update dynamically in real time!
+  // Subscribe to live storage changes and real Firestore cloud analytics
   useEffect(() => {
-    const unsubscribe = addStorageListener(() => {
+    const unsubscribeStorage = addStorageListener(() => {
       setAnalytics(getRealAnalyticsData());
       setBlogs(getBlogs());
       setLogs(getActivityLogs());
       setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     });
-    return unsubscribe;
+
+    const unsubscribeCloud = subscribeToGlobalAnalytics((cloudSummary) => {
+      if (cloudSummary) {
+        setAnalytics((prev) => ({
+          ...prev,
+          totalCombinedViews: Math.max(prev.totalCombinedViews, cloudSummary.totalViews || 0),
+          todayVisitors: Math.max(prev.todayVisitors, cloudSummary.totalVisitors || 0),
+          deviceBreakdown: {
+            mobile: Math.max(prev.deviceBreakdown.mobile, cloudSummary.mobileViews || 0),
+            desktop: Math.max(prev.deviceBreakdown.desktop, cloudSummary.desktopViews || 0),
+            tablet: Math.max(prev.deviceBreakdown.tablet, cloudSummary.tabletViews || 0),
+          },
+        }));
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      }
+    });
+
+    return () => {
+      unsubscribeStorage();
+      unsubscribeCloud();
+    };
   }, []);
 
   // Category counts and views from real database articles

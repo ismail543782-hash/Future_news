@@ -309,35 +309,37 @@ export const INITIAL_ADS: Advertisement[] = [
     id: 'ad-header',
     title: 'শীর্ষ হেডার ব্যানার (728x90 Leaderboard)',
     slot: 'header_leaderboard',
-    type: 'custom_banner',
+    type: 'adsterra_code',
     image_url: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1000&auto=format&fit=crop&q=80',
     target_url: 'https://cloud.google.com',
-    sponsor_name: 'Next-Gen Cloud Solutions Sponsor',
-    code_html: `<!-- Google AdSense Demo Snippet -->
-<div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; padding: 16px 24px; border-radius: 8px; text-align: center; border: 1px solid #334155;">
-  <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; font-weight: 600;">বিজ্ঞাপন / SPONSORED AD</span>
-  <h4 style="margin: 6px 0 2px 0; font-size: 17px; font-weight: 700; color: #38bdf8;">প্রিমিয়াম ক্লাউড হোস্টিং ও ডেডিকেটেড সার্ভার — ৫০% ছাড়</h4>
-  <p style="margin: 0; font-size: 13px; color: #cbd5e1;">আপনার নিউজ পোর্টাল ও অ্যাপ্লিকেশনের জন্য আল্ট্রা-ফাস্ট হোস্টিং। আজই শুরু করুন!</p>
-</div>`,
+    sponsor_name: 'Google Cloud Platform',
+    code_html: `<div id="container-0c21abd70645ec3de555805c1c040ade"></div>
+<script async="async" data-cfasync="false" src="https://pl31276435.profitableratecpmnetwork.com/0c21abd70645ec3de555805c1c040ade/invoke.js"></script>`,
     is_enabled: true,
     impressions: 24850,
     clicks: 1120,
   },
   {
     id: 'ad-article',
-    title: 'খবরের ভেতরের বিজ্ঞাপন (নিষ্ক্রিয়)',
+    title: 'খবরের ভেতরের বিজ্ঞাপন (In-Article Fluid)',
     slot: 'in_article',
-    type: 'adsterra_code',
-    is_enabled: false,
-    impressions: 0,
-    clicks: 0,
+    type: 'custom_banner',
+    image_url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
+    target_url: 'https://www.coursera.org',
+    sponsor_name: 'Global Online Learning',
+    code_html: '',
+    is_enabled: true,
+    impressions: 18200,
+    clicks: 940,
   },
   {
     id: 'ad-sidebar',
-    title: 'সাইডবার ব্যানার (Adsterra 300x250)',
+    title: 'সাইডবার ব্যানার (Adsterra 300x250 & Sponsor)',
     slot: 'sidebar',
     type: 'adsterra_code',
     sponsor_name: 'Adsterra Network',
+    image_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80',
+    target_url: 'https://techcrunch.com',
     code_html: `<script>
   atOptions = {
     'key' : 'df15c15bbb929ea00dcbac992a9419a4',
@@ -353,6 +355,20 @@ export const INITIAL_ADS: Advertisement[] = [
     clicks: 690,
   },
   {
+    id: 'ad-bottom',
+    title: 'নিউজ শেষে নিচের ব্যানার (Bottom Banner)',
+    slot: 'bottom_banner',
+    type: 'adsterra_code',
+    sponsor_name: 'Adsterra & CyberShield',
+    image_url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1000&auto=format&fit=crop&q=80',
+    target_url: 'https://nordvpn.com',
+    code_html: `<div id="container-0c21abd70645ec3de555805c1c040ade"></div>
+<script async="async" data-cfasync="false" src="https://pl31276435.profitableratecpmnetwork.com/0c21abd70645ec3de555805c1c040ade/invoke.js"></script>`,
+    is_enabled: true,
+    impressions: 21500,
+    clicks: 810,
+  },
+  {
     id: 'ad-sticky',
     title: 'স্টিকি বটম ফ্লোটিং ব্যানার (Sticky Footer Bar)',
     slot: 'sticky_bottom',
@@ -361,7 +377,7 @@ export const INITIAL_ADS: Advertisement[] = [
     target_url: 'https://google.com',
     sponsor_name: 'Digital Security Guardian',
     code_html: '',
-    is_enabled: false,
+    is_enabled: true,
     impressions: 31200,
     clicks: 1450,
   }

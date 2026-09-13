@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Advertisement, AdSlot, AdSenseSettings } from '../../types/news';
+import { INITIAL_ADS } from '../../data/initialData';
 import {
   getAdvertisements,
   saveAdvertisement,
@@ -35,19 +36,20 @@ export const AdsManager: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<AdSlot>('header_leaderboard');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  const currentAd = ads.find((a) => a.slot === selectedSlot) || {
-    id: `ad-${selectedSlot}`,
-    title: 'New Ad',
-    slot: selectedSlot,
-    type: 'custom_banner',
-    image_url: '',
-    target_url: '',
-    sponsor_name: '',
-    code_html: '',
-    is_enabled: true,
-    impressions: 0,
-    clicks: 0,
-  };
+  const currentAd = ads.find((a) => a.slot === selectedSlot) ||
+    INITIAL_ADS.find((a) => a.slot === selectedSlot) || {
+      id: `ad-${selectedSlot}`,
+      title: 'New Ad',
+      slot: selectedSlot,
+      type: 'custom_banner',
+      image_url: '',
+      target_url: '',
+      sponsor_name: '',
+      code_html: '',
+      is_enabled: true,
+      impressions: 0,
+      clicks: 0,
+    };
 
   // Real Metrics
   const totalImpressions = ads.reduce((sum, a) => sum + (a.impressions || 0), 0);

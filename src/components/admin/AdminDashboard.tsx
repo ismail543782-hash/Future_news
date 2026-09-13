@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Article, Category, Author, Comment, BlogPost, Book } from '../../types/news';
 import {
   saveArticle,
@@ -43,12 +43,15 @@ import {
   PenTool,
   Globe,
   BookOpen,
+  RefreshCw,
 } from 'lucide-react';
+import { uploadAllLocalDataToCloud } from '../../services/firestoreSync';
 
 interface AdminDashboardProps {
   articles: Article[];
   categories: Category[];
   authors: Author[];
+  books?: Book[];
   onRefreshData: () => void;
   onExitAdmin: () => void;
   onSelectArticle: (slug: string) => void;
@@ -73,6 +76,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   articles,
   categories,
   authors,
+  books: propBooks,
   onRefreshData,
   onExitAdmin,
   onSelectArticle,
@@ -84,7 +88,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [searchFilter, setSearchFilter] = useState('');
   const [selectedCatFilter, setSelectedCatFilter] = useState<string>('all');
   const [comments, setComments] = useState<Comment[]>(getComments());
-  const [books, setBooks] = useState<Book[]>(getBooks());
+  const [books, setBooks] = useState<Book[]>(propBooks || getBooks());
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [cloudSyncMsg, setCloudSyncMsg] = useState<string | null>(null);
+
+  // Sync books from prop or local storage
+  useEffect(() => {
+    if (propBooks) {
+      setBooks(propBooks);
+    }
+  }, [propBooks]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setBooks(getBooks());
+      setComments(getComments());
+    };
+    window.addEventListener('futurenews_data_updated', handleUpdate);
+    return () => window.removeEventListener('futurenews_data_updated', handleUpdate);
+  }, []);
+
+  const handleForceCloudSync = async () => {
+    try {
+      setIsCloudSyncing(true);
+      setCloudSyncMsg(null);
+      const res = await uploadAllLocalDataToCloud();
+      setCloudSyncMsg(
+        `সফল হয়েছে! ${res.articlesCount}টি সংবাদ ও ${res.booksCount}টি বই ক্লাউডে সিঙ্ক হয়েছে।`
+      );
+      onRefreshData();
+      setTimeout(() => setCloudSyncMsg(null), 6000);
+    } catch (e) {
+      console.error(e);
+      setCloudSyncMsg('সিঙ্ক করতে সমস্যা হয়েছে। ইন্টারনেট চেক করুন।');
+      setTimeout(() => setCloudSyncMsg(null), 5000);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   const handleLogout = () => {
     setAdminLoggedIn(false);
@@ -156,6 +197,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Cloud Firestore Live Status & Quick Sync */}
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-1.5 bg-emerald-950/80 text-emerald-400 border border-emerald-700/50 px-2.5 py-1.5 rounded-lg text-[11px] font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>ক্লাউড লাইভ</span>
+              </div>
+
+              <button
+                type="button"
+                id="admin-force-sync-btn"
+                onClick={handleForceCloudSync}
+                disabled={isCloudSyncing}
+                className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all shadow-xs disabled:opacity-50"
+                title="আপনার সব সংবাদ ও বই ক্লাউডে সিঙ্ক করুন যাতে সবাই দেখতে পায়"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                <span>{isCloudSyncing ? 'সিঙ্ক হচ্ছে...' : 'সব ডাটা ক্লাউডে সিঙ্ক'}</span>
+              </button>
+            </div>
+
             {/* View Public Portal */}
             <button
               type="button"
@@ -392,6 +453,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Right Main Content Area */}
         <main className="flex-1 min-w-0">
+          {cloudSyncMsg && (
+            <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-semibold flex items-center justify-between shadow-xs animate-fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{cloudSyncMsg}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCloudSyncMsg(null)}
+                className="text-emerald-700 hover:text-emerald-900 text-xs underline font-bold"
+              >
+                ঠিক আছে
+              </button>
+            </div>
+          )}
+
           {/* Article Editor Mode (New or Edit) */}
           {(activeTab === 'new_article' || editingArticle) && (
             <ArticleEditor

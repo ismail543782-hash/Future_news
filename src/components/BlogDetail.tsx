@@ -305,9 +305,14 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
               .map((p) => p.trim())
               .filter(Boolean)
               .map((para, i) => (
-                <p key={i} className="leading-relaxed">
-                  {para}
-                </p>
+                <React.Fragment key={i}>
+                  <p className="leading-relaxed">{para}</p>
+                  {i === 1 && (
+                    <div className="my-6">
+                      <AdBanner slot="in_article" />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
           </div>
 

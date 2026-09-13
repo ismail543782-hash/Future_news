@@ -14,6 +14,7 @@ import {
   saveBook,
 } from './utils/storage';
 import { updatePageSeo, updateBlogPageSeo } from './utils/seo';
+import { initializeGlobalSync } from './services/liveCloudSync';
 
 // Components
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -233,10 +234,21 @@ export default function App() {
     window.addEventListener('futurenews_data_updated', handleDataUpdate);
     window.addEventListener('storage', handleDataUpdate);
 
+    // Initialize Cloud Firestore real-time sync across all devices
+    let cleanupSync: (() => void) | undefined;
+    initializeGlobalSync()
+      .then((unsub) => {
+        cleanupSync = unsub;
+      })
+      .catch((e) => console.warn('Global Firestore sync error:', e));
+
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('futurenews_data_updated', handleDataUpdate);
       window.removeEventListener('storage', handleDataUpdate);
+      if (cleanupSync) {
+        cleanupSync();
+      }
     };
   }, [loadData]);
 
@@ -412,6 +424,7 @@ export default function App() {
           articles={articles}
           categories={categories}
           authors={authors}
+          books={books}
           onRefreshData={loadData}
           onExitAdmin={handleGoHome}
           onSelectArticle={handleSelectArticle}

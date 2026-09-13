@@ -120,12 +120,13 @@ export const DEFAULT_AD_CONFIG: AdSystemConfig = {
       adSenseSlotId: '1234567890',
     },
 
-    // ২. খবরের ভেতরের ব্যানার (In-Article) - পাঠকের সুবিধার জন্য বন্ধ রাখা হয়েছে
+    // ২. খবরের ভেতরের ব্যানার (In-Article Fluid)
     in_article: {
-      enabled: false, // খবরের পড়ার মাঝে কোনো বিরক্তি যাতে না হয় সেজন্য নিষ্ক্রিয়
-      label: 'আর্টিকেলের ভেতরের বিজ্ঞাপন (বন্ধ রাখা হয়েছে)',
+      enabled: true,
+      label: 'আর্টিকেলের ভেতরের বিজ্ঞাপন (In-Article)',
       sizeHint: '300x250 বা ফ্লুইড ইন-আর্টিকেল',
-      adsterraHtml: ``,
+      adsterraHtml: `<div id="container-0c21abd70645ec3de555805c1c040ade"></div>
+<script async="async" data-cfasync="false" src="https://pl31276435.profitableratecpmnetwork.com/0c21abd70645ec3de555805c1c040ade/invoke.js"></script>`,
       adSenseSlotId: '2345678901',
     },
 
@@ -152,15 +153,15 @@ export const DEFAULT_AD_CONFIG: AdSystemConfig = {
       enabled: true,
       label: 'নিউজ শেষে নিচের ব্যানার (Native Banner Widget)',
       sizeHint: 'রেস্পনসিভ নেটিভ কনটেইনার',
-      adsterraHtml: `<script async="async" data-cfasync="false" src="https://pl31276435.profitableratecpmnetwork.com/0c21abd70645ec3de555805c1c040ade/invoke.js"></script>
-<div id="container-0c21abd70645ec3de555805c1c040ade"></div>`,
+      adsterraHtml: `<div id="container-0c21abd70645ec3de555805c1c040ade"></div>
+<script async="async" data-cfasync="false" src="https://pl31276435.profitableratecpmnetwork.com/0c21abd70645ec3de555805c1c040ade/invoke.js"></script>`,
       adSenseSlotId: '4567890123',
     },
 
-    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার (ডিফল্টভাবে বন্ধ রাখা হয়েছে যাতে কোনো অস্বস্তি না হয়)
+    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার
     sticky_bottom: {
-      enabled: false,
-      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (নিষ্ক্রিয়)',
+      enabled: true,
+      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (Sticky Footer)',
       sizeHint: 'রেস্পনসিভ ফ্লোটিং বার',
       adsterraHtml: ``,
       adSenseSlotId: '5678901234',

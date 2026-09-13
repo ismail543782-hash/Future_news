@@ -1,6 +1,6 @@
 {
   "name": "Future News - Premium Publishing & Media Portal",
   "description": "A bilingual (Bengali & English) premium news and media publishing portal with admin dashboard, digital book publishing & e-library, automated Google SEO & sitemap generator, non-intrusive Adsterra & AdSense monetization, and community blog hub.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

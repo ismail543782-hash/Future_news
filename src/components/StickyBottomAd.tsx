@@ -29,7 +29,13 @@ export const StickyBottomAd: React.FC = () => {
             <DynamicAd slot="sticky_bottom" showLabel={false} className="my-0 bg-transparent border-0 p-0" />
           </div>
         ) : (
-          <div className="flex items-center gap-3 overflow-hidden flex-1">
+          <a
+            href={ad?.target_url || '#'}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            onClick={handleClick}
+            className="flex items-center gap-3 overflow-hidden flex-1 no-underline group cursor-pointer"
+          >
             <span className="text-[10px] uppercase font-bold tracking-wider bg-rose-600 text-white px-2 py-0.5 rounded shrink-0">
               স্পন্সরড
             </span>
@@ -37,19 +43,19 @@ export const StickyBottomAd: React.FC = () => {
               <img
                 src={ad.image_url}
                 alt={ad.title}
-                className="w-12 h-9 object-cover rounded hidden sm:inline-block shrink-0"
+                className="w-12 h-9 object-cover rounded hidden sm:inline-block shrink-0 border border-stone-700"
                 referrerPolicy="no-referrer"
               />
             )}
             <div className="truncate">
-              <h5 className="text-xs sm:text-sm font-bold truncate text-stone-100">
+              <h5 className="text-xs sm:text-sm font-bold truncate text-stone-100 group-hover:text-rose-400 transition-colors">
                 {ad?.title || 'বিজ্ঞাপন ও স্পন্সর অফার'}
               </h5>
               {ad?.sponsor_name && (
                 <p className="text-[11px] text-stone-400 truncate">{ad.sponsor_name}</p>
               )}
             </div>
-          </div>
+          </a>
         )}
 
         <div className="flex items-center gap-2 shrink-0">

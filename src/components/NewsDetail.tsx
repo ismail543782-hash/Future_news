@@ -437,10 +437,18 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
               </div>
             </div>
 
-            {/* Article Content Paragraphs (Clean & Uninterrupted for Reader Comfort) */}
+            {/* Article Content Paragraphs with In-Article Ad placement */}
             <div className="font-serif text-stone-900 text-lg sm:text-xl leading-relaxed space-y-6">
               {paragraphs.map((p, idx) => (
-                <p key={idx} className="text-stone-800 tracking-normal">{p}</p>
+                <React.Fragment key={idx}>
+                  <p className="text-stone-800 tracking-normal">{p}</p>
+                  {/* Insert in-article ad after second paragraph or first if only 2 */}
+                  {idx === 1 && (
+                    <div className="my-6 not-serif font-sans">
+                      <AdBanner slot="in_article" className="my-2" />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
 

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Language, CountryEdition } from '../types/news';
-import { Search, Globe, Shield, Lock, Menu, X, Flame, PenTool, Sparkles, BookOpen } from 'lucide-react';
+import { Search, Globe, Shield, Lock, Menu, X, Flame, PenTool, Sparkles, BookOpen, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { CountryEditionSelector } from './CountryEditionSelector';
+import { WeatherModal } from './WeatherModal';
+import { RealCalendarModal } from './RealCalendarModal';
+import { fetchLiveWeather, getCachedWeather, getSavedLocation, WeatherData } from '../services/weatherService';
 
 interface HeaderProps {
   categories: Category[];
@@ -42,8 +45,53 @@ export const Header: React.FC<HeaderProps> = ({
   onEditionChange,
 }) => {
   const [currentDateTime, setCurrentDateTime] = useState('');
+  const [currentTimeStr, setCurrentTimeStr] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
+
+  // Weather & Calendar Modals
+  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(() => getCachedWeather());
+
+  // Background real-time weather refresh every 15 minutes
+  useEffect(() => {
+    const refreshWeather = () => {
+      const loc = getSavedLocation();
+      fetchLiveWeather(loc.latitude, loc.longitude, loc.city, loc.country)
+        .then((data) => setWeatherData(data))
+        .catch((err) => console.warn('Periodic weather update notice:', err));
+    };
+
+    refreshWeather();
+    const weatherTimer = setInterval(refreshWeather, 15 * 60 * 1000);
+    return () => clearInterval(weatherTimer);
+  }, []);
+
+  const handleEditionSelect = (edition: CountryEdition) => {
+    // Map edition to coordinate and fetch real-time weather immediately
+    const cityCoordMap: Record<string, { lat: number; lon: number; city: string; country: string }> = {
+      bd: { lat: 23.8103, lon: 90.4125, city: 'ঢাকা (Dhaka)', country: 'Bangladesh' },
+      us: { lat: 40.7128, lon: -74.0060, city: 'নিউ ইয়র্ক (New York)', country: 'United States' },
+      uk: { lat: 51.5074, lon: -0.1278, city: 'লন্ডন (London)', country: 'United Kingdom' },
+      me: { lat: 24.7136, lon: 46.6753, city: 'রিয়াদ (Riyadh)', country: 'Saudi Arabia' },
+      in: { lat: 22.5726, lon: 88.3639, city: 'কলকাতা (Kolkata)', country: 'India' },
+      eu: { lat: 52.5200, lon: 13.4050, city: 'বার্লিন (Berlin)', country: 'Germany' },
+      ca: { lat: 43.6532, lon: -79.3832, city: 'টরন্টো (Toronto)', country: 'Canada' },
+      global: { lat: 51.5074, lon: -0.1278, city: 'লন্ডন (London)', country: 'Global' },
+    };
+
+    const target = cityCoordMap[edition.id];
+    if (target) {
+      fetchLiveWeather(target.lat, target.lon, target.city, target.country)
+        .then((data) => setWeatherData(data))
+        .catch((err) => console.warn('Edition weather update failed:', err));
+    }
+
+    if (onEditionChange) {
+      onEditionChange(edition);
+    }
+  };
 
   useEffect(() => {
     const updateTime = () => {
@@ -57,6 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
         };
         // Bengali locale formatted date
         setCurrentDateTime(now.toLocaleDateString('bn-BD', options));
+        setCurrentTimeStr(now.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }));
       } else {
         const options: Intl.DateTimeFormatOptions = {
           weekday: 'long',
@@ -65,10 +114,11 @@ export const Header: React.FC<HeaderProps> = ({
           day: 'numeric',
         };
         setCurrentDateTime(now.toLocaleDateString('en-US', options));
+        setCurrentTimeStr(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
       }
     };
     updateTime();
-    const timer = setInterval(updateTime, 60000);
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, [language]);
 
@@ -81,11 +131,44 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Country and International Edition Selector */}
             <CountryEditionSelector
               language={language}
-              onEditionChange={onEditionChange}
+              onEditionChange={handleEditionSelect}
             />
 
             <span className="hidden sm:inline-block text-stone-600">|</span>
-            <span className="text-stone-300 font-medium hidden sm:inline">{currentDateTime}</span>
+
+            {/* Real Calendar & Time Trigger */}
+            <button
+              type="button"
+              id="header-calendar-clock-btn"
+              onClick={() => setIsCalendarModalOpen(true)}
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-stone-800 text-stone-300 hover:text-white transition-colors cursor-pointer group"
+              title={language === 'bn' ? 'ক্যালেন্ডার ও সঠিক ঘড়ি দেখতে ক্লিক করুন' : 'Click to open accurate calendar & live clock'}
+            >
+              <CalendarIcon className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
+              <span className="font-medium hidden md:inline">{currentDateTime}</span>
+              <span className="font-mono text-rose-300 font-bold ml-0.5">{currentTimeStr}</span>
+            </button>
+
+            <span className="hidden md:inline-block text-stone-600">|</span>
+
+            {/* Live Weather Trigger */}
+            <button
+              type="button"
+              id="header-live-weather-btn"
+              onClick={() => setIsWeatherModalOpen(true)}
+              className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-stone-800 text-sky-300 hover:text-sky-200 transition-colors cursor-pointer group"
+              title={language === 'bn' ? 'আজকের ও আগামীকালের আবহাওয়া পূর্বাভাস' : 'Live weather & 24h precipitation forecast'}
+            >
+              <span className="text-sm group-hover:scale-110 transition-transform">
+                {weatherData?.current.icon || '🌤️'}
+              </span>
+              <span className="font-bold text-white font-mono">
+                {weatherData ? `${weatherData.current.tempC}°C` : '২৮°C'}
+              </span>
+              <span className="text-[11px] text-sky-400 font-medium truncate max-w-[90px] lg:max-w-[130px]">
+                {weatherData ? weatherData.city.split(' ')[0] : 'ঢাকা'}
+              </span>
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
@@ -157,45 +240,70 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Masthead / Logo Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              id="brand-logo-btn"
-              onClick={onGoHome}
-              className="group text-left focus:outline-none"
-            >
-              <div className="flex items-baseline gap-2.5">
-                <span className="font-extrabold text-3xl sm:text-4xl tracking-tight text-stone-900 group-hover:text-rose-600 transition-colors">
-                  FUTURE<span className="text-rose-600 font-serif">NEWS</span>
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200 uppercase tracking-widest hidden sm:inline-block">
-                  {language === 'bn' ? 'দৈনিক সংবাদপত্র' : 'Daily Edition'}
-                </span>
-              </div>
-              <p className="text-xs text-stone-600 mt-0.5 tracking-wide">
-                {language === 'bn'
-                  ? 'সত্য ও সময়ের প্রতিচ্ছবি • বিশ্বস্ত মুক্ত সাংবাদিকতা'
-                  : 'Independent Journalism • In-depth Analysis & Truth'}
-              </p>
-            </button>
-
-            {/* Mobile Hamburger & Search */}
-            <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Mobile Left: 3-line Hamburger Menu button */}
               <button
                 type="button"
-                onClick={() => setShowSearchInput(!showSearchInput)}
-                className="p-2 text-stone-600 hover:text-stone-900 rounded-md"
-                aria-label="Search"
+                id="mobile-menu-btn-left"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 -ml-1 text-stone-700 hover:text-rose-600 rounded-lg md:hidden hover:bg-stone-100 transition-colors focus:outline-none"
+                aria-label="মেনু খুলুন (Toggle menu)"
               >
-                <Search className="w-5 h-5" />
+                {mobileMenuOpen ? <X className="w-6 h-6 text-rose-600" /> : <Menu className="w-6 h-6" />}
+              </button>
+
+              {/* Brand Logo */}
+              <button
+                type="button"
+                id="brand-logo-btn"
+                onClick={onGoHome}
+                className="group text-left focus:outline-none"
+              >
+                <div className="flex items-baseline gap-2">
+                  <span className="font-extrabold text-2xl sm:text-3xl lg:text-4xl tracking-tight text-stone-900 group-hover:text-rose-600 transition-colors">
+                    FUTURE<span className="text-rose-600 font-serif">NEWS</span>
+                  </span>
+                  <span className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200 uppercase tracking-widest hidden sm:inline-block">
+                    {language === 'bn' ? 'দৈনিক সংবাদপত্র' : 'Daily Edition'}
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-stone-600 mt-0.5 tracking-wide hidden sm:block">
+                  {language === 'bn'
+                    ? 'সত্য ও সময়ের প্রতিচ্ছবি • বিশ্বস্ত মুক্ত সাংবাদিকতা'
+                    : 'Independent Journalism • In-depth Analysis & Truth'}
+                </p>
+              </button>
+            </div>
+
+            {/* Mobile Right: Weather, Calendar & Search quick icons */}
+            <div className="flex items-center gap-1 md:hidden">
+              <button
+                type="button"
+                id="mobile-header-weather-btn"
+                onClick={() => setIsWeatherModalOpen(true)}
+                className="p-1.5 text-stone-700 hover:text-sky-600 rounded-md hover:bg-sky-50 transition-colors text-xs font-bold flex items-center gap-1"
+                title="আবহাওয়া"
+              >
+                <span>{weatherData?.current.icon || '🌤️'}</span>
+                <span className="text-[11px] font-mono">{weatherData ? `${weatherData.current.tempC}°` : ''}</span>
               </button>
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-stone-600 hover:text-stone-900 rounded-md"
-                aria-label="Toggle menu"
+                id="mobile-header-calendar-btn"
+                onClick={() => setIsCalendarModalOpen(true)}
+                className="p-1.5 text-stone-600 hover:text-rose-600 rounded-md hover:bg-stone-100 transition-colors"
+                title="ক্যালেন্ডার ও সময়"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                <CalendarIcon className="w-5 h-5 text-stone-600" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSearchInput(!showSearchInput)}
+                className="p-1.5 text-stone-600 hover:text-stone-900 rounded-md hover:bg-stone-100 transition-colors"
+                aria-label="Search"
+              >
+                <Search className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -330,6 +438,35 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Mobile Category Dropdown / List */}
           {mobileMenuOpen && (
             <div className="md:hidden py-3 border-t border-stone-200 flex flex-col space-y-1">
+              {/* Mobile Quick Action Buttons: Weather & Calendar */}
+              <div className="grid grid-cols-2 gap-2 pb-2 mb-2 border-b border-stone-200">
+                <button
+                  type="button"
+                  id="mobile-drawer-weather-btn"
+                  onClick={() => {
+                    setIsWeatherModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-bold transition-colors"
+                >
+                  <span className="text-base">{weatherData?.current.icon || '🌤️'}</span>
+                  <span>{language === 'bn' ? 'আবহাওয়া রিপোর্ট' : 'Live Weather'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="mobile-drawer-calendar-btn"
+                  onClick={() => {
+                    setIsCalendarModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-xs font-bold transition-colors"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-rose-600" />
+                  <span>{language === 'bn' ? 'ক্যালেন্ডার ও সময়' : 'Real Calendar'}</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
@@ -413,6 +550,21 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </nav>
+
+      {/* Real Weather Modal */}
+      <WeatherModal
+        isOpen={isWeatherModalOpen}
+        onClose={() => setIsWeatherModalOpen(false)}
+        language={language}
+        onWeatherUpdated={(updated) => setWeatherData(updated)}
+      />
+
+      {/* Real Accurate Calendar & Live Clock Modal */}
+      <RealCalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
+        language={language}
+      />
     </header>
   );
 };
