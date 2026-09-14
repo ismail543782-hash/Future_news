@@ -15,6 +15,7 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { AdBanner } from './AdBanner';
+import { downloadBookPdf } from '../utils/fileStorage';
 
 interface BookHubProps {
   books: Book[];
@@ -38,6 +39,9 @@ export const BookHub: React.FC<BookHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'pages'>('latest');
+
+  const fallbackBookCover =
+    'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&auto=format&fit=crop&q=80';
 
   // Categories list
   const categories = useMemo(() => {
@@ -165,9 +169,13 @@ export const BookHub: React.FC<BookHubProps> = ({
                   className="w-full sm:w-32 h-44 shrink-0 overflow-hidden rounded-lg shadow-md border border-stone-200 relative group cursor-pointer"
                 >
                   <img
-                    src={b.cover_image}
+                    src={b.cover_image || fallbackBookCover}
                     alt={b.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = fallbackBookCover;
+                    }}
                     referrerPolicy="no-referrer"
                   />
                   <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-white text-[10px] font-bold">
@@ -334,9 +342,13 @@ export const BookHub: React.FC<BookHubProps> = ({
                     className="relative h-56 bg-stone-100 overflow-hidden cursor-pointer"
                   >
                     <img
-                      src={book.cover_image}
+                      src={book.cover_image || fallbackBookCover}
                       alt={book.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = fallbackBookCover;
+                      }}
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-90" />
@@ -389,16 +401,15 @@ export const BookHub: React.FC<BookHubProps> = ({
                         <span>{language === 'bn' ? 'পড়ুন' : 'Read Now'}</span>
                       </button>
 
-                      {book.pdf_url && (
-                        <a
-                          href={book.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-lg text-xs transition-colors"
+                      {book.allow_download !== false && (
+                        <button
+                          type="button"
+                          onClick={() => downloadBookPdf(book.id, book.title, book.pdf_url, book.pdf_filename, book)}
+                          className="p-2 border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-lg text-xs transition-colors active:scale-95 cursor-pointer"
                           title={language === 'bn' ? 'PDF ডাউনলোড' : 'Download PDF'}
                         >
                           <Download className="w-4 h-4" />
-                        </a>
+                        </button>
                       )}
 
                       <button

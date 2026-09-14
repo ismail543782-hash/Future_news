@@ -163,9 +163,15 @@ export const BlogHub: React.FC<BlogHubProps> = ({
         >
           <div className="lg:col-span-7 relative h-64 sm:h-80 lg:h-full min-h-[280px] overflow-hidden bg-stone-900">
             <img
-              src={featuredBlog.featured_image}
+              src={featuredBlog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80'}
               alt={language === 'bn' ? featuredBlog.title_bn : featuredBlog.title_en}
               className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80';
+              }}
+              referrerPolicy="no-referrer"
             />
             <div className="absolute top-4 left-4 flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-rose-600 text-white text-[11px] font-bold shadow-md">
@@ -249,9 +255,15 @@ export const BlogHub: React.FC<BlogHubProps> = ({
               <div>
                 <div className="relative h-48 overflow-hidden bg-stone-900">
                   <img
-                    src={blog.featured_image}
+                    src={blog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=800&auto=format&fit=crop&q=80'}
                     alt={language === 'bn' ? blog.title_bn : blog.title_en}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1542435503-956c469947f6?w=800&auto=format&fit=crop&q=80';
+                    }}
+                    referrerPolicy="no-referrer"
                   />
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-stone-900/80 text-white text-[11px] font-bold backdrop-blur-xs">
                     {language === 'bn' ? blog.category_name_bn : blog.category_name_en}

@@ -14,10 +14,12 @@ import {
   Check,
   Bookmark,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { AdBanner } from './AdBanner';
 import { getBookProgress, incrementBookViews } from '../utils/storage';
 import { downloadBookPdf } from '../utils/fileStorage';
+import { updateBookPageSeo } from '../utils/seo';
 
 interface BookDetailProps {
   book: Book;
@@ -38,6 +40,7 @@ export const BookDetail: React.FC<BookDetailProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [lastReadPage, setLastReadPage] = useState<number>(1);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -46,17 +49,33 @@ export const BookDetail: React.FC<BookDetailProps> = ({
     if (saved && saved > 1) {
       setLastReadPage(saved);
     }
-  }, [book.id]);
+    updateBookPageSeo(book, language);
+  }, [book.id, book, language]);
 
   // Handle share
-  const handleShare = (platform: 'fb' | 'wa' | 'tw' | 'copy') => {
+  const handleShare = async (platform: 'fb' | 'wa' | 'tw' | 'copy' | 'native') => {
     const url = window.location.href;
     const text = `${book.title} - ${book.author} | ফিউচার নিউজ ই-লাইব্রেরি`;
 
+    if (platform === 'native' && typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: book.title,
+          text: `${text}\n${book.description?.slice(0, 100) || ''}`,
+          url: url,
+        });
+        return;
+      } catch (e) {
+        // User cancelled or share failed, fallback to copy
+      }
+    }
+
     if (platform === 'copy') {
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
       return;
     }
 
@@ -69,7 +88,7 @@ export const BookDetail: React.FC<BookDetailProps> = ({
       shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
     }
 
-    if (shareUrl) {
+    if (shareUrl && typeof window !== 'undefined') {
       window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=450');
     }
   };
@@ -196,11 +215,11 @@ export const BookDetail: React.FC<BookDetailProps> = ({
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-stone-100 space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <button
                     type="button"
                     onClick={() => onOpenReader(book.slug, lastReadPage)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all hover:shadow-lg"
+                    className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all hover:shadow-lg active:scale-98"
                   >
                     <BookOpen className="w-4 h-4" />
                     <span>
@@ -214,16 +233,36 @@ export const BookDetail: React.FC<BookDetailProps> = ({
                     </span>
                   </button>
 
-                  {(book.has_uploaded_pdf || book.pdf_url) && (
+                  {book.allow_download !== false && (
                     <button
                       type="button"
-                      onClick={() => downloadBookPdf(book.id, book.title, book.pdf_url, book.pdf_filename)}
-                      className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-800 font-bold text-sm transition-colors"
+                      disabled={isDownloading}
+                      onClick={async () => {
+                        try {
+                          setIsDownloading(true);
+                          await downloadBookPdf(book.id, book.title, book.pdf_url, book.pdf_filename, book);
+                        } finally {
+                          setIsDownloading(false);
+                        }
+                      }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-800 font-bold text-sm transition-colors disabled:opacity-60 active:scale-98 cursor-pointer"
                       title={language === 'bn' ? 'PDF ফাইল সংরক্ষণ বা ডাউনলোড করুন' : 'Download PDF File'}
                     >
-                      <Download className="w-4 h-4 text-stone-600" />
-                      <span className="hidden sm:inline">{language === 'bn' ? 'PDF কপি' : 'PDF Copy'}</span>
-                      {book.pdf_filesize && (
+                      {isDownloading ? (
+                        <RefreshCw className="w-4 h-4 text-rose-600 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4 text-stone-600" />
+                      )}
+                      <span>
+                        {isDownloading
+                          ? language === 'bn'
+                            ? 'ডাউনলোড হচ্ছে...'
+                            : 'Downloading...'
+                          : language === 'bn'
+                          ? 'PDF ডাউনলোড'
+                          : 'Download PDF'}
+                      </span>
+                      {book.pdf_filesize && !isDownloading && (
                         <span className="text-[11px] text-stone-500 font-normal">({book.pdf_filesize})</span>
                       )}
                     </button>
@@ -231,8 +270,20 @@ export const BookDetail: React.FC<BookDetailProps> = ({
                 </div>
 
                 {/* Social Share Bar */}
-                <div className="flex items-center gap-2 pt-2 text-xs text-stone-500">
+                <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-stone-500">
                   <span className="font-semibold">{language === 'bn' ? 'শেয়ার করুন:' : 'Share:'}</span>
+
+                  {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+                    <button
+                      type="button"
+                      onClick={() => handleShare('native')}
+                      className="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold transition-colors flex items-center gap-1 active:scale-95"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>{language === 'bn' ? 'মোবাইলে শেয়ার' : 'Share'}</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => handleShare('fb')}
@@ -257,7 +308,7 @@ export const BookDetail: React.FC<BookDetailProps> = ({
                   <button
                     type="button"
                     onClick={() => handleShare('copy')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold transition-colors ml-auto"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold transition-colors sm:ml-auto"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
                     <span>{copied ? (language === 'bn' ? 'কপি হয়েছে!' : 'Copied!') : language === 'bn' ? 'লিংক কপি' : 'Copy Link'}</span>

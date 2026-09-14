@@ -918,7 +918,7 @@ export default function App() {
                         <p className="text-[11px] text-stone-400 mt-1 truncate">{bk.author}</p>
                         <div className="flex items-center gap-2 text-[10px] text-stone-400 mt-1">
                           <span>{bk.total_pages} পৃষ্ঠা</span>
-                          {bk.pdf_url && (
+                          {(bk.pdf_url || bk.has_uploaded_pdf) && (
                             <span className="text-emerald-400 flex items-center gap-0.5">
                               <Download className="w-2.5 h-2.5" /> PDF
                             </span>

@@ -25,6 +25,13 @@ export function generateSlug(text: string): string {
   return unicodeCleaned.length > 0 ? unicodeCleaned.slice(0, 65) : `post-${Date.now()}`;
 }
 
+export function toAbsoluteUrl(url?: string): string {
+  if (!url) return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://futurenews65.netlify.app';
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export function autoGenerateSeoFromTitle(
   title: string,
   summary: string,
@@ -91,23 +98,38 @@ export function updatePageSeo(article?: Article, lang: 'bn' | 'en' = 'bn'): void
     article.summary_en ||
     'Future News Online Portal';
 
+  const imageUrl = toAbsoluteUrl(article.featured_image);
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://futurenews65.netlify.app/';
+
   document.title = `${title} - Future News`;
 
   setMetaTag('name', 'description', description);
   const keywords = Array.isArray(article.tags) ? article.tags.join(', ') : 'news, bangladesh, future news';
   setMetaTag('name', 'keywords', keywords);
   setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
+  
+  // Open Graph (Facebook, WhatsApp, LinkedIn, etc.)
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
-  setMetaTag('property', 'og:image', article.featured_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80');
+  setMetaTag('property', 'og:image', imageUrl);
+  setMetaTag('property', 'og:image:secure_url', imageUrl);
+  setMetaTag('property', 'og:image:width', '1200');
+  setMetaTag('property', 'og:image:height', '630');
+  setMetaTag('property', 'og:image:alt', title);
   setMetaTag('property', 'og:type', 'article');
-  setMetaTag('property', 'og:url', window.location.href);
+  setMetaTag('property', 'og:url', currentUrl);
+  setMetaTag('property', 'og:site_name', 'Future News');
+  setMetaTag('property', 'og:locale', lang === 'bn' ? 'bn_BD' : 'en_US');
+
+  // Twitter Card (X)
   setMetaTag('name', 'twitter:card', 'summary_large_image');
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', description);
-  setMetaTag('name', 'twitter:image', article.featured_image || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80');
+  setMetaTag('name', 'twitter:image', imageUrl);
+  setMetaTag('name', 'twitter:image:alt', title);
+  setMetaTag('name', 'twitter:site', '@FutureNews');
 
-  setLinkTag('canonical', window.location.href.split('?')[0]);
+  setLinkTag('canonical', currentUrl.split('?')[0]);
   injectNewsSchema(article, lang);
 }
 
@@ -125,39 +147,104 @@ export function updateBlogPageSeo(blog: BlogPost, lang: 'bn' | 'en' = 'bn'): voi
     blog.summary_en ||
     'Future News Blog & Gallery';
 
+  const imageUrl = toAbsoluteUrl(blog.featured_image);
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://futurenews65.netlify.app/blogs';
+
   document.title = `${title} | ফিউচার নিউজ ব্লগ`;
 
   setMetaTag('name', 'description', description);
   const keywords = Array.isArray(blog.tags) ? blog.tags.join(', ') : 'blog, future news, opinions';
   setMetaTag('name', 'keywords', keywords);
   setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
+  
+  // Open Graph
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
-  setMetaTag('property', 'og:image', blog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80');
+  setMetaTag('property', 'og:image', imageUrl);
+  setMetaTag('property', 'og:image:secure_url', imageUrl);
+  setMetaTag('property', 'og:image:width', '1200');
+  setMetaTag('property', 'og:image:height', '630');
+  setMetaTag('property', 'og:image:alt', title);
   setMetaTag('property', 'og:type', 'article');
-  setMetaTag('property', 'og:url', window.location.href);
+  setMetaTag('property', 'og:url', currentUrl);
+  setMetaTag('property', 'og:site_name', 'Future News Blog');
+  setMetaTag('property', 'og:locale', lang === 'bn' ? 'bn_BD' : 'en_US');
+
+  // Twitter Card
   setMetaTag('name', 'twitter:card', 'summary_large_image');
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', description);
-  setMetaTag('name', 'twitter:image', blog.featured_image || 'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80');
+  setMetaTag('name', 'twitter:image', imageUrl);
+  setMetaTag('name', 'twitter:image:alt', title);
 
-  setLinkTag('canonical', window.location.href.split('?')[0]);
+  setLinkTag('canonical', currentUrl.split('?')[0]);
   injectBlogSchema(blog, lang);
 }
 
-export function updateGeneralPageSeo(title: string, description: string, lang: 'bn' | 'en' = 'bn'): void {
+export function updateBookPageSeo(book: Book, lang: 'bn' | 'en' = 'bn'): void {
+  const title = `${book.title} - ${book.author} | ফিউচার নিউজ ই-বুক`;
+  const description =
+    book.meta_description ||
+    book.description ||
+    `পড়ুন '${book.title}' - লেখক ${book.author}। ফিউচার নিউজ ডিজিটাল লাইব্রেরিতে অনলাইনে পড়ুন বা বিনামূল্যে PDF সংগ্রহ করুন।`;
+
+  const imageUrl = toAbsoluteUrl(book.cover_image);
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://futurenews65.netlify.app/books';
+
   document.title = title;
+
   setMetaTag('name', 'description', description);
-  setMetaTag('name', 'robots', 'index, follow');
+  const keywords = Array.isArray(book.keywords) ? book.keywords.join(', ') : `${book.title}, ${book.author}, bangla book, pdf book`;
+  setMetaTag('name', 'keywords', keywords);
+  setMetaTag('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
+
+  // Open Graph (Facebook, WhatsApp, etc.)
   setMetaTag('property', 'og:title', title);
   setMetaTag('property', 'og:description', description);
-  setMetaTag('property', 'og:type', 'website');
-  setMetaTag('property', 'og:url', window.location.href);
+  setMetaTag('property', 'og:image', imageUrl);
+  setMetaTag('property', 'og:image:secure_url', imageUrl);
+  setMetaTag('property', 'og:image:width', '800');
+  setMetaTag('property', 'og:image:height', '1200');
+  setMetaTag('property', 'og:image:alt', `${book.title} - ${book.author}`);
+  setMetaTag('property', 'og:type', 'book');
+  setMetaTag('property', 'og:url', currentUrl);
+  setMetaTag('property', 'og:site_name', 'Future News E-Library');
+  setMetaTag('property', 'og:locale', lang === 'bn' ? 'bn_BD' : 'en_US');
+
+  // Twitter Card
   setMetaTag('name', 'twitter:card', 'summary_large_image');
   setMetaTag('name', 'twitter:title', title);
   setMetaTag('name', 'twitter:description', description);
+  setMetaTag('name', 'twitter:image', imageUrl);
+  setMetaTag('name', 'twitter:image:alt', `${book.title} Cover`);
 
-  setLinkTag('canonical', window.location.href.split('?')[0]);
+  setLinkTag('canonical', currentUrl.split('?')[0]);
+  injectBookSchema(book, lang);
+}
+
+export function updateGeneralPageSeo(title: string, description: string, lang: 'bn' | 'en' = 'bn'): void {
+  const defaultImage = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&auto=format&fit=crop&q=80';
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://futurenews65.netlify.app/';
+
+  document.title = title;
+  setMetaTag('name', 'description', description);
+  setMetaTag('name', 'robots', 'index, follow, max-image-preview:large');
+  setMetaTag('property', 'og:title', title);
+  setMetaTag('property', 'og:description', description);
+  setMetaTag('property', 'og:image', defaultImage);
+  setMetaTag('property', 'og:image:secure_url', defaultImage);
+  setMetaTag('property', 'og:image:width', '1200');
+  setMetaTag('property', 'og:image:height', '630');
+  setMetaTag('property', 'og:type', 'website');
+  setMetaTag('property', 'og:url', currentUrl);
+  setMetaTag('property', 'og:site_name', 'Future News');
+  setMetaTag('property', 'og:locale', lang === 'bn' ? 'bn_BD' : 'en_US');
+  setMetaTag('name', 'twitter:card', 'summary_large_image');
+  setMetaTag('name', 'twitter:title', title);
+  setMetaTag('name', 'twitter:description', description);
+  setMetaTag('name', 'twitter:image', defaultImage);
+
+  setLinkTag('canonical', currentUrl.split('?')[0]);
   injectWebSiteSchema(lang);
 }
 
@@ -247,6 +334,42 @@ function injectBlogSchema(blog: BlogPost, lang: 'bn' | 'en'): void {
     'publisher': {
       '@type': 'Organization',
       'name': 'Future News Blog Hub',
+    },
+    'mainEntityOfPage': {
+      '@type': 'WebPage',
+      '@id': window.location.href,
+    },
+  };
+
+  const script = document.createElement('script');
+  script.id = 'news-schema-jsonld';
+  script.type = 'application/ld+json';
+  script.text = JSON.stringify(schema);
+  document.head.appendChild(script);
+}
+
+function injectBookSchema(book: Book, lang: 'bn' | 'en'): void {
+  const existingScript = document.getElementById('news-schema-jsonld');
+  if (existingScript) existingScript.remove();
+
+  const imageUrl = toAbsoluteUrl(book.cover_image);
+
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    'name': book.title,
+    'description': book.description,
+    'image': imageUrl,
+    'numberOfPages': book.total_pages,
+    'inLanguage': book.language === 'bn' ? 'bn-BD' : 'en',
+    'datePublished': book.created_at,
+    'author': {
+      '@type': 'Person',
+      'name': book.author,
+    },
+    'publisher': {
+      '@type': 'Organization',
+      'name': 'Future News Digital Publishing',
     },
     'mainEntityOfPage': {
       '@type': 'WebPage',

@@ -18,6 +18,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+    match /books/{bookId}/{subCollection=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /book_files/{bookId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /book_files/{bookId}/{subCollection=**} {
+      allow read: if true;
+      allow write: if true;
+    }
 
     // Blogs: Anyone can read blogs, editorial sync
     match /blogs/{blogId} {

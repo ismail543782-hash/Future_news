@@ -1,7 +1,10 @@
 /**
  * fileStorage.ts
- * IndexedDB storage engine for uploaded PDF books & high-performance image compression
+ * IndexedDB storage engine + Cloud Chunks integration for uploaded PDF books
  */
+import { getPdfFromCloudChunks, savePdfToCloudChunks, deletePdfFromCloudChunks } from './cloudPdfStorage';
+import { generateBookPdfBlob } from './pdfGenerator';
+import { Book } from '../types/news';
 
 const DB_NAME = 'future_news_library_db';
 const DB_VERSION = 1;
@@ -80,46 +83,63 @@ export async function savePdfBlob(
 }
 
 /**
- * Retrieve stored PDF Blob and metadata by bookId
+ * Retrieve stored PDF Blob and metadata by bookId.
+ * First checks local IndexedDB; if not found (e.g. user is on mobile),
+ * checks Cloud Firestore chunk storage, downloads and caches in local IndexedDB.
  */
 export async function getPdfBlob(
   bookId: string
 ): Promise<{ blob: Blob; filename: string; size: number } | null> {
   try {
     const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PDFS, 'readonly');
-      const store = tx.objectStore(STORE_PDFS);
-      const req = store.get(bookId);
+    const localResult = await new Promise<StoredPdfRecord | null>((resolve) => {
+      try {
+        const tx = db.transaction(STORE_PDFS, 'readonly');
+        const store = tx.objectStore(STORE_PDFS);
+        const req = store.get(bookId);
 
-      req.onsuccess = () => {
-        const result = req.result as StoredPdfRecord | undefined;
-        if (result && result.blob) {
-          resolve({
-            blob: result.blob,
-            filename: result.filename,
-            size: result.size,
-          });
-        } else {
-          resolve(null);
-        }
-      };
-
-      req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          resolve((req.result as StoredPdfRecord) || null);
+        };
+        req.onerror = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
     });
+
+    if (localResult && localResult.blob) {
+      return {
+        blob: localResult.blob,
+        filename: localResult.filename,
+        size: localResult.size,
+      };
+    }
   } catch (err) {
-    console.warn('Failed to get PDF from IndexedDB:', err);
-    return null;
+    console.warn('IndexedDB read note:', err);
   }
+
+  // Fallback: Check Cloud Firestore chunk storage (for mobile devices or secondary browsers)
+  try {
+    const cloudRecord = await getPdfFromCloudChunks(bookId);
+    if (cloudRecord && cloudRecord.blob) {
+      // Cache in local IndexedDB for future fast offline reading
+      savePdfBlob(bookId, cloudRecord.blob, cloudRecord.filename).catch(() => {});
+      return cloudRecord;
+    }
+  } catch (e) {
+    console.warn('Cloud PDF fetch note:', e);
+  }
+
+  return null;
 }
 
 /**
- * Delete a PDF blob from IndexedDB
+ * Delete a PDF blob from IndexedDB and Cloud Firestore
  */
 export async function deletePdfBlob(bookId: string): Promise<void> {
   try {
     const db = await getDB();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_PDFS, 'readwrite');
       const store = tx.objectStore(STORE_PDFS);
       const req = store.delete(bookId);
@@ -130,13 +150,19 @@ export async function deletePdfBlob(bookId: string): Promise<void> {
   } catch (err) {
     console.warn('Failed to delete PDF from IndexedDB:', err);
   }
+
+  try {
+    await deletePdfFromCloudChunks(bookId);
+  } catch (err) {
+    console.warn('Failed to delete PDF from Cloud:', err);
+  }
 }
 
 // Keep active Object URLs in memory for disposal
 const activeObjectUrls = new Map<string, string>();
 
 /**
- * Get an active Object URL for a book's PDF (either from IndexedDB or Data URL)
+ * Get an active Object URL for a book's PDF (either from IndexedDB or Cloud Firestore)
  */
 export async function getPdfObjectUrl(bookId: string): Promise<string | null> {
   // Check if we already created an object URL in this session
@@ -155,19 +181,24 @@ export async function getPdfObjectUrl(bookId: string): Promise<string | null> {
 
 /**
  * Normalize and convert any PDF link (Google Drive, Dropbox, standard URL, or Blob)
- * to an optimal in-browser embeddable viewer URL
+ * to an optimal in-browser embeddable viewer URL.
+ * Automatically wraps direct URLs in Google Docs Viewer for mobile iframes when appropriate.
  */
-export function normalizePdfViewerUrl(rawUrl: string): {
+export function normalizePdfViewerUrl(rawUrl: string, isMobile = false): {
   embedUrl: string;
   isGoogleDrive: boolean;
   canEmbed: boolean;
 } {
   if (!rawUrl) return { embedUrl: '', isGoogleDrive: false, canEmbed: false };
 
+  // Filter out invalid/stale blob URLs from other devices
+  if (rawUrl.startsWith('blob:') && !rawUrl.includes(window.location.host)) {
+    return { embedUrl: '', isGoogleDrive: false, canEmbed: false };
+  }
+
   const trimmed = rawUrl.trim();
 
   // 1. Google Drive Share Link Converter
-  // e.g. https://drive.google.com/file/d/1A2B3C4D5E/view?usp=sharing
   const gDriveMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (gDriveMatch && gDriveMatch[1]) {
     const fileId = gDriveMatch[1];
@@ -182,13 +213,24 @@ export function normalizePdfViewerUrl(rawUrl: string): {
   if (trimmed.includes('dropbox.com')) {
     const directDropbox = trimmed.replace(/[?&]dl=0/, '?raw=1');
     return {
-      embedUrl: directDropbox,
+      embedUrl: isMobile
+        ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(directDropbox)}`
+        : directDropbox,
       isGoogleDrive: false,
       canEmbed: true,
     };
   }
 
-  // 3. Data URL or Blob URL or direct PDF
+  // 3. If mobile and standard http/https PDF: wrap in Google Docs Viewer for reliable mobile iframe rendering
+  if (isMobile && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+    return {
+      embedUrl: `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(trimmed)}`,
+      isGoogleDrive: false,
+      canEmbed: true,
+    };
+  }
+
+  // 4. Data URL or Blob URL or direct PDF
   return {
     embedUrl: trimmed,
     isGoogleDrive: false,
@@ -198,7 +240,6 @@ export function normalizePdfViewerUrl(rawUrl: string): {
 
 /**
  * Compress and scale an uploaded cover image file (JPEG/PNG/WebP) using an HTML5 Canvas.
- * Keeps aspect ratio, reduces a multi-megabyte photo to ~80-150KB Data URL.
  */
 export function compressImageFile(
   file: File,
@@ -230,12 +271,10 @@ export function compressImageFile(
           return;
         }
 
-        // Draw image smoothly
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Convert to webp or jpeg Data URL
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(dataUrl);
       };
@@ -256,39 +295,76 @@ export function compressImageFile(
 }
 
 /**
- * Trigger browser download for a PDF book
+ * Trigger robust browser download for a PDF book.
+ * Specially engineered for Mobile (Android & iOS) as well as Desktop:
+ * 1. Checks local IndexedDB
+ * 2. Checks Cloud Firestore chunk storage
+ * 3. Attempts direct fetch & Blob conversion for external links
+ * 4. Generates an authentic PDF on-the-fly using jsPDF if only text pages exist
  */
 export async function downloadBookPdf(
   bookId: string,
   title: string,
   externalPdfUrl?: string,
-  filename?: string
-): Promise<void> {
-  const safeFilename = (filename || `${title}.pdf`).replace(/[\\/:*?"<>|]/g, '_');
+  filename?: string,
+  book?: Book
+): Promise<boolean> {
+  const safeFilename = (filename || `${title}.pdf`)
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\.pdf\.pdf$/i, '.pdf');
 
-  // Check if we have an uploaded blob in IndexedDB
-  const stored = await getPdfBlob(bookId);
-  if (stored && stored.blob) {
-    const blobUrl = URL.createObjectURL(stored.blob);
+  const executeBlobDownload = (blob: Blob, name: string) => {
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = stored.filename || safeFilename;
+    a.download = name.endsWith('.pdf') ? name : `${name}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-    return;
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+  };
+
+  // 1. Check local IndexedDB or Cloud Firestore chunks
+  try {
+    const stored = await getPdfBlob(bookId);
+    if (stored && stored.blob) {
+      executeBlobDownload(stored.blob, stored.filename || safeFilename);
+      return true;
+    }
+  } catch (err) {
+    console.warn('PDF blob check error:', err);
   }
 
-  // Otherwise, use the external PDF URL
-  if (externalPdfUrl) {
-    const a = document.createElement('a');
-    a.href = externalPdfUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.download = safeFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // 2. Try fetching external PDF URL as Blob (bypasses cross-origin download blocking on mobile)
+  if (externalPdfUrl && !externalPdfUrl.startsWith('blob:')) {
+    try {
+      const response = await fetch(externalPdfUrl, { mode: 'cors' });
+      if (response.ok) {
+        const fetchedBlob = await response.blob();
+        executeBlobDownload(fetchedBlob, safeFilename);
+        return true;
+      }
+    } catch {
+      // CORS or network error, proceed to fallback
+    }
   }
+
+  // 3. If book has pages or data, generate authentic PDF on-the-fly using jsPDF!
+  if (book) {
+    try {
+      const generatedBlob = await generateBookPdfBlob(book);
+      executeBlobDownload(generatedBlob, safeFilename);
+      return true;
+    } catch (err) {
+      console.warn('On-the-fly PDF generation error:', err);
+    }
+  }
+
+  // 4. Fallback: Open external link in new tab if reachable
+  if (externalPdfUrl && !externalPdfUrl.startsWith('blob:')) {
+    window.open(externalPdfUrl, '_blank', 'noopener,noreferrer');
+    return true;
+  }
+
+  return false;
 }

@@ -34,6 +34,7 @@ import {
   compressImageFile,
   normalizePdfViewerUrl,
 } from '../../utils/fileStorage';
+import { savePdfToCloudChunks } from '../../utils/cloudPdfStorage';
 
 function formatBytes(bytes: number, decimals = 1): string {
   if (!+bytes) return '0 Bytes';
@@ -333,13 +334,31 @@ export const BookEditor: React.FC<BookEditorProps> = ({
       let finalFileSize = pdfFileSize;
 
       if (pdfFile) {
-        // Save PDF to IndexedDB
+        // Save PDF to IndexedDB for local offline reading
         await savePdfBlob(bookId, pdfFile, pdfFile.name);
+        // Also sync PDF chunks to Cloud Firestore so mobile users can view and download
+        await savePdfToCloudChunks(bookId, pdfFile, pdfFile.name);
         hasUploadedPdf = true;
         finalFileName = pdfFile.name;
         finalFileSize = formatBytes(pdfFile.size);
-        // Create an active blob URL for immediate viewing in this session
-        finalPdfUrl = URL.createObjectURL(pdfFile);
+      }
+
+      // Volatile blob: URLs are machine-specific and must NEVER be stored in the cloud database
+      if (finalPdfUrl && finalPdfUrl.startsWith('blob:')) {
+        finalPdfUrl = '';
+      }
+
+      // Ensure there is at least 1 reading page for interactive reader
+      let finalPages = pages;
+      if (!finalPages || finalPages.length === 0) {
+        finalPages = [
+          {
+            id: `p-${Date.now()}-1`,
+            page_number: 1,
+            chapter_title: language === 'bn' ? 'সূচনা ও ভূমিকা' : 'Introduction',
+            content: description.trim() || title.trim(),
+          },
+        ];
       }
 
       const keywords = keywordsText
@@ -361,7 +380,7 @@ export const BookEditor: React.FC<BookEditorProps> = ({
         pdf_filesize: finalFileSize || undefined,
         has_uploaded_pdf: hasUploadedPdf,
         allow_download: allowDownload,
-        total_pages: pages.length,
+        total_pages: finalPages.length,
         reading_time_minutes: Number(readingTime) || 10,
         published_year: publishedYear.trim() || '২০২৬',
         language: 'bn',
@@ -370,7 +389,7 @@ export const BookEditor: React.FC<BookEditorProps> = ({
         views_count: book?.views_count || 0,
         created_at: book?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        pages,
+        pages: finalPages,
         meta_title: metaTitle.trim() || undefined,
         meta_description: metaDescription.trim() || undefined,
         keywords: keywords.length > 0 ? keywords : undefined,

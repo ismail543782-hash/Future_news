@@ -45,28 +45,46 @@ export const BookReader: React.FC<BookReaderProps> = ({
   const [fontSize, setFontSize] = useState<FontSize>('base');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTocDrawer, setShowTocDrawer] = useState(false);
-  const [viewMode, setViewMode] = useState<'interactive' | 'pdf'>(
-    book.has_uploaded_pdf || (book.pdf_url && (!book.pages || book.pages.length <= 1))
-      ? 'pdf'
-      : 'interactive'
-  );
+  const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+  const [viewMode, setViewMode] = useState<'interactive' | 'pdf'>(() => {
+    // If mobile and book has pages: prefer interactive reader for instantaneous, responsive reading
+    if (isMobileDevice && book.pages && book.pages.length > 0) {
+      return 'interactive';
+    }
+    // If book has uploaded PDF or has external PDF and few/no pages
+    if (book.has_uploaded_pdf || (book.pdf_url && (!book.pages || book.pages.length <= 1))) {
+      return 'pdf';
+    }
+    return 'interactive';
+  });
   const [copied, setCopied] = useState(false);
   const [resolvedPdfUrl, setResolvedPdfUrl] = useState<string>('');
   const [isPdfLoading, setIsPdfLoading] = useState<boolean>(true);
   const [pdfZoom, setPdfZoom] = useState<number>(100);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // Load PDF Blob from IndexedDB or external URL
+  // Load PDF Blob from IndexedDB / Cloud Firestore chunks or external URL
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
 
     const loadPdf = async () => {
       setIsPdfLoading(true);
+      const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+
+      // Timeout protection: do not let user get stuck on loading spinner for more than 3.5s
+      const timer = setTimeout(() => {
+        if (active) {
+          setIsPdfLoading(false);
+        }
+      }, 3500);
+
       try {
         if (book.has_uploaded_pdf) {
           const objUrl = await getPdfObjectUrl(book.id);
           if (active && objUrl) {
+            clearTimeout(timer);
             createdUrl = objUrl;
             setResolvedPdfUrl(objUrl);
             setIsPdfLoading(false);
@@ -74,19 +92,27 @@ export const BookReader: React.FC<BookReaderProps> = ({
           }
         }
 
-        if (book.pdf_url) {
-          const norm = normalizePdfViewerUrl(book.pdf_url);
+        // Clean out invalid volatile blob URLs from other devices
+        const isDeadBlob = book.pdf_url?.startsWith('blob:') && !book.pdf_url?.includes(window.location.host);
+
+        if (book.pdf_url && !isDeadBlob) {
+          const norm = normalizePdfViewerUrl(book.pdf_url, isMobile);
           if (active) {
+            clearTimeout(timer);
             setResolvedPdfUrl(norm.embedUrl);
             setIsPdfLoading(false);
           }
         } else {
+          clearTimeout(timer);
           if (active) setIsPdfLoading(false);
         }
       } catch (err) {
+        clearTimeout(timer);
         console.error('Failed to load PDF source in reader:', err);
         if (active) {
-          if (book.pdf_url) setResolvedPdfUrl(book.pdf_url);
+          if (book.pdf_url && !book.pdf_url.startsWith('blob:')) {
+            setResolvedPdfUrl(book.pdf_url);
+          }
           setIsPdfLoading(false);
         }
       }
@@ -105,7 +131,7 @@ export const BookReader: React.FC<BookReaderProps> = ({
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      await downloadBookPdf(book.id, book.title, resolvedPdfUrl || book.pdf_url, book.pdf_filename);
+      await downloadBookPdf(book.id, book.title, resolvedPdfUrl || book.pdf_url, book.pdf_filename, book);
     } finally {
       setIsDownloading(false);
     }
@@ -565,39 +591,109 @@ export const BookReader: React.FC<BookReaderProps> = ({
             {/* Embedded PDF Content */}
             <div className="w-full flex-1 min-h-[75vh] md:min-h-[85vh] bg-stone-100 relative overflow-auto">
               {isPdfLoading ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 gap-3 text-stone-500">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 gap-3 p-6 text-center text-stone-500">
                   <RefreshCw className="w-8 h-8 text-rose-600 animate-spin" />
-                  <p className="text-xs font-semibold">
-                    {language === 'bn' ? 'পিডিএফ রিডার লোড হচ্ছে...' : 'Loading PDF document...'}
+                  <p className="text-sm font-bold text-stone-800">
+                    {language === 'bn' ? 'পিডিএফ রিডার প্রস্তুত হচ্ছে...' : 'Preparing PDF reader...'}
                   </p>
+                  <p className="text-xs text-stone-500 max-w-xs">
+                    {language === 'bn'
+                      ? 'মোবাইল ব্রাউজারে দ্রুত পড়তে আপনি এখনই পেজ রিডার বেছে নিতে পারেন।'
+                      : 'You can also switch to the interactive page reader immediately.'}
+                  </p>
+                  {pages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('interactive')}
+                      className="mt-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+                    >
+                      {language === 'bn' ? 'ইন্টারেক্টিভ পেজ রিডারে পড়ুন' : 'Read in Page Reader'}
+                    </button>
+                  )}
                 </div>
               ) : resolvedPdfUrl ? (
-                <div
-                  className="w-full h-full min-h-[75vh] md:min-h-[85vh] transition-transform origin-top flex items-center justify-center"
-                  style={{
-                    transform: pdfZoom !== 100 ? `scale(${pdfZoom / 100})` : undefined,
-                    transformOrigin: 'top center',
-                  }}
-                >
-                  <iframe
-                    src={`${resolvedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-                    title={book.title}
-                    className="w-full h-full min-h-[75vh] md:min-h-[85vh] border-0"
-                  />
+                <div className="w-full h-full flex flex-col">
+                  {/* Mobile Quick Action Helper */}
+                  <div className="md:hidden bg-stone-900 text-white px-3 py-2 flex items-center justify-between gap-2 text-xs border-b border-stone-800">
+                    <span className="truncate text-stone-300 font-medium">
+                      {language === 'bn' ? 'মোবাইলে পড়ার অপশন' : 'Mobile Reading Options'}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={resolvedPdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 rounded text-[11px] font-bold inline-flex items-center gap-1 border border-stone-700"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>{language === 'bn' ? 'ফুলস্ক্রিন' : 'Fullscreen'}</span>
+                      </a>
+                      {pages.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('interactive')}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 rounded text-[11px] font-bold"
+                        >
+                          {language === 'bn' ? 'পেজ রিডার' : 'Page Reader'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    className="w-full flex-1 min-h-[70vh] md:min-h-[85vh] transition-transform origin-top flex items-center justify-center"
+                    style={{
+                      transform: pdfZoom !== 100 ? `scale(${pdfZoom / 100})` : undefined,
+                      transformOrigin: 'top center',
+                    }}
+                  >
+                    <iframe
+                      src={`${resolvedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                      title={book.title}
+                      className="w-full h-full min-h-[70vh] md:min-h-[85vh] border-0"
+                    />
+                  </div>
                 </div>
               ) : (
-                <div className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-center text-stone-500 gap-3">
-                  <FileText className="w-12 h-12 text-stone-300" />
-                  <p className="text-sm font-bold text-stone-700">
-                    {language === 'bn' ? 'পিডিএফ ফাইলটি পাওয়া যায়নি।' : 'PDF document not found.'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('interactive')}
-                    className="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold"
-                  >
-                    {language === 'bn' ? 'পেজ রিডারে পড়ুন' : 'Read in Page Reader'}
-                  </button>
+                <div className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-center text-stone-600 gap-4">
+                  <FileText className="w-14 h-14 text-rose-500/80" />
+                  <div className="space-y-1 max-w-md">
+                    <p className="text-base font-bold text-stone-800">
+                      {language === 'bn'
+                        ? 'ডিজিটাল পেজ রিডারে বইটি সম্পূর্ণ প্রস্তুত!'
+                        : 'Book is ready in the Interactive Reader!'}
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {language === 'bn'
+                        ? 'মোবাইলে কোনো প্লাগইন ছাড়াই বইটির প্রতিটি পৃষ্ঠা স্বাচ্ছন্দ্যে পড়ুন অথবা অফলাইনে পড়ার জন্য PDF ডাউনলোড করুন।'
+                        : 'Read effortlessly on mobile without any plugins, or download the PDF for offline reading.'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('interactive')}
+                      className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      <span>{language === 'bn' ? 'ইন্টারেক্টিভ পেজ রিডারে পড়ুন' : 'Read in Page Reader'}</span>
+                    </button>
+                    {book.allow_download && (
+                      <button
+                        type="button"
+                        onClick={handleDownload}
+                        disabled={isDownloading}
+                        className="px-4 py-2.5 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {isDownloading ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                        <span>{language === 'bn' ? 'পিডিএফ ডাউনলোড' : 'Download PDF'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

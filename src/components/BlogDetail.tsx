@@ -86,6 +86,20 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
     }
   };
 
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: title,
+          text: `${title}\n${summary ? summary.slice(0, 120) : ''}`,
+          url: window.location.href,
+        });
+      } catch (e) {
+        // User cancelled share
+      }
+    }
+  };
+
   const handleAddComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentName.trim() || !commentText.trim() || !blog?.id) return;
@@ -235,7 +249,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleToggleLike}
@@ -248,6 +262,18 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
                   <Heart className={`w-4 h-4 ${isLiked ? 'fill-white' : ''}`} />
                   <span>{likes}</span>
                 </button>
+
+                {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+                  <button
+                    type="button"
+                    onClick={handleNativeShare}
+                    className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold active:scale-95"
+                    title={contentLang === 'bn' ? 'মোবাইলে শেয়ার করুন' : 'Share'}
+                  >
+                    <Share2 className="w-4 h-4 text-rose-600" />
+                    <span className="hidden xs:inline">{contentLang === 'bn' ? 'শেয়ার' : 'Share'}</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -288,6 +314,10 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({
               alt={title}
               className="w-full max-h-[500px] object-cover cursor-pointer"
               onClick={() => setSelectedPhoto(blog?.featured_image || null)}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1542435503-956c469947f6?w=1200&auto=format&fit=crop&q=80';
+              }}
               referrerPolicy="no-referrer"
             />
             {caption && (

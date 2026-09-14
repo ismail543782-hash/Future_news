@@ -76,6 +76,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           alt={title}
           className="w-20 h-16 object-cover rounded shrink-0 bg-stone-100"
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = fallbackImage;
+          }}
           referrerPolicy="no-referrer"
         />
         <div className="flex-1 min-w-0">
@@ -108,10 +111,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       >
         <div className="sm:w-1/3 shrink-0 overflow-hidden rounded-md bg-stone-100">
           <img
-            src={article.featured_image}
+            src={article.featured_image || fallbackImage}
             alt={title}
             className="w-full h-44 sm:h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = fallbackImage;
+            }}
             referrerPolicy="no-referrer"
           />
         </div>
@@ -164,10 +170,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     >
       <div className="relative aspect-video overflow-hidden bg-stone-100">
         <img
-          src={article.featured_image}
+          src={article.featured_image || fallbackImage}
           alt={title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = fallbackImage;
+          }}
           referrerPolicy="no-referrer"
         />
         {article.is_trending && (
