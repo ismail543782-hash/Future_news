@@ -159,41 +159,6 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
     }
   };
 
-  // Social Share handlers
-  const handleSocialShare = async (platform: 'fb' | 'x' | 'wa' | 'in' | 'native') => {
-    const encodedUrl = encodeURIComponent(articleUrl);
-    const encodedTitle = encodeURIComponent(title);
-
-    if (platform === 'native' && typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title: title,
-          text: `${title}\n${summary ? summary.slice(0, 120) : ''}`,
-          url: articleUrl,
-        });
-        return;
-      } catch (e) {
-        // User cancelled share
-      }
-    }
-
-    let shareUrl = '';
-
-    if (platform === 'fb') {
-      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
-    } else if (platform === 'x') {
-      shareUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
-    } else if (platform === 'wa') {
-      shareUrl = `https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}`;
-    } else if (platform === 'in') {
-      shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
-    }
-
-    if (shareUrl && typeof window !== 'undefined') {
-      window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
-    }
-  };
-
   // Submit comment
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -417,54 +382,6 @@ export const NewsDetail: React.FC<NewsDetailProps> = ({
                   )}
                 </div>
               )}
-            </div>
-
-            {/* Social Share Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 py-4 my-4 border-y border-stone-200">
-              <span className="text-xs font-bold uppercase text-stone-600 tracking-wider">
-                {language === 'bn' ? 'সংবাদটি শেয়ার করুন:' : 'SHARE THIS STORY:'}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
-                  <button
-                    type="button"
-                    onClick={() => handleSocialShare('native')}
-                    className="px-3 py-1.5 bg-rose-600 text-white text-xs font-semibold rounded hover:bg-rose-700 transition-colors flex items-center gap-1 active:scale-95 shadow-xs"
-                    title={language === 'bn' ? 'মোবাইলে সরাসরি শেয়ার করুন' : 'Direct mobile share'}
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>{language === 'bn' ? 'সরাসরি শেয়ার' : 'Share'}</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleSocialShare('fb')}
-                  className="px-3 py-1.5 bg-[#1877F2] text-white text-xs font-semibold rounded hover:opacity-90 transition-opacity active:scale-95"
-                >
-                  Facebook
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialShare('x')}
-                  className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded hover:opacity-90 transition-opacity active:scale-95"
-                >
-                  X (Twitter)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialShare('wa')}
-                  className="px-3 py-1.5 bg-[#25D366] text-white text-xs font-semibold rounded hover:opacity-90 transition-opacity active:scale-95"
-                >
-                  WhatsApp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialShare('in')}
-                  className="px-3 py-1.5 bg-[#0A66C2] text-white text-xs font-semibold rounded hover:opacity-90 transition-opacity active:scale-95"
-                >
-                  LinkedIn
-                </button>
-              </div>
             </div>
 
             {/* Article Content Paragraphs with In-Article Ad placement */}

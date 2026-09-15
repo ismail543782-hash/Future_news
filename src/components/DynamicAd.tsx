@@ -119,7 +119,6 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
   showLabel = true,
   adOverride,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [adSenseError, setAdSenseError] = useState(false);
   const [isAdBlockerActive, setIsAdBlockerActive] = useState(false);
@@ -191,15 +190,12 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
   }, []);
 
   // --------------------------------------------------------------------------
-  // 🟢 Adsterra স্ক্রিপ্ট ও HTML এক্সিকিউশন হ্যান্ডলার
+  // 🟢 Adsterra স্ক্রিপ্ট ও HTML এক্সিকিউশন হ্যান্ডলার (আইসোলেটেড আইফ্রেমে)
   // --------------------------------------------------------------------------
   useEffect(() => {
     if (effectiveNetwork !== 'adsterra' || !rawHtmlCode) return;
 
-    // যদি Adsterra-র `atOptions` বা iframe-ভিত্তিক কোড থাকে
-    const isAtOptionsScript = rawHtmlCode.includes('atOptions');
-
-    if (isAtOptionsScript && iframeRef.current) {
+    if (iframeRef.current) {
       const iframe = iframeRef.current;
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
@@ -211,6 +207,16 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
               <head>
                 <meta charset="utf-8" />
                 <base target="_blank" />
+                <script>
+                  window.onerror = function() { return true; };
+                  window.addEventListener('error', function(e) {
+                    if (e) {
+                      e.preventDefault && e.preventDefault();
+                      e.stopPropagation && e.stopPropagation();
+                    }
+                    return true;
+                  }, true);
+                </script>
                 <style>
                   body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
                 </style>
@@ -218,56 +224,24 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
               <body>
                 ${rawHtmlCode}
                 <script>
-                  window.addEventListener('load', function() {
-                    window.parent.postMessage({ type: 'ADSTERRA_LOADED', slot: '${slot}' }, '*');
-                  });
+                  try {
+                    window.addEventListener('load', function() {
+                      try {
+                        window.parent.postMessage({ type: 'ADSTERRA_LOADED', slot: '${slot}' }, '*');
+                      } catch(e) {}
+                    });
+                  } catch(e) {}
                 </script>
               </body>
             </html>
           `);
           doc.close();
+          setAdScriptLoaded(true);
         }
       } catch {
         setAdScriptLoaded(false);
       }
-      return;
     }
-
-    // Adsterra Native Container Script (যেমন container-0c21abd70645ec3de555805c1c040ade)
-    const container = containerRef.current;
-    if (!container) return;
-
-    try {
-      container.innerHTML = '';
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = rawHtmlCode;
-
-      const scripts: HTMLScriptElement[] = [];
-      Array.from(tempDiv.childNodes).forEach((node) => {
-        if (node.nodeName.toLowerCase() === 'script') {
-          scripts.push(node as HTMLScriptElement);
-        } else {
-          container.appendChild(node.cloneNode(true));
-        }
-      });
-
-      scripts.forEach((oldScript) => {
-        const newScript = document.createElement('script');
-        Array.from(oldScript.attributes).forEach((attr) => {
-          newScript.setAttribute(attr.name, attr.value);
-        });
-        newScript.text = oldScript.text;
-        container.appendChild(newScript);
-      });
-
-      setAdScriptLoaded(true);
-    } catch {
-      setAdScriptLoaded(false);
-    }
-
-    return () => {
-      if (container) container.innerHTML = '';
-    };
   }, [effectiveNetwork, rawHtmlCode, slot]);
 
   // --------------------------------------------------------------------------
@@ -283,6 +257,9 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
       script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${effectivePublisherId}`;
       script.async = true;
       script.crossOrigin = 'anonymous';
+      script.onerror = () => {
+        setAdSenseError(true);
+      };
       document.head.appendChild(script);
     }
 
@@ -348,8 +325,8 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
       {/* ================================================================== */}
       {effectiveNetwork === 'adsterra' && (
         <div className="w-full flex flex-col items-center justify-center">
-          {/* যদি atOptions থাকে তবে আইফ্রেমে চালান */}
-          {rawHtmlCode && rawHtmlCode.includes('atOptions') ? (
+          {/* অ্যাড কোড সম্পূর্ণভাবে আইসোলেটেড আইফ্রেমে চালান */}
+          {rawHtmlCode ? (
             <div className="w-full flex justify-center items-center py-1">
               <iframe
                 ref={iframeRef}
@@ -366,8 +343,6 @@ export const DynamicAd: React.FC<DynamicAdProps> = ({
                 scrolling="no"
               />
             </div>
-          ) : rawHtmlCode ? (
-            <div ref={containerRef} className="w-full flex justify-center items-center py-1 min-h-[50px]" />
           ) : null}
 
           {/* ব্যাকআপ স্পন্সর ব্যানার (অ্যাডস্টারার কোডটি ব্লকার দ্বারা বাধা পেলে বা কোনো কারণে সাদা দেখালে যেন গ্রাহক ফাঁকা না দেখে) */}

@@ -38,7 +38,6 @@ export const BookDetail: React.FC<BookDetailProps> = ({
   onOpenReader,
   onSelectOtherBook,
 }) => {
-  const [copied, setCopied] = useState(false);
   const [lastReadPage, setLastReadPage] = useState<number>(1);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
@@ -51,47 +50,6 @@ export const BookDetail: React.FC<BookDetailProps> = ({
     }
     updateBookPageSeo(book, language);
   }, [book.id, book, language]);
-
-  // Handle share
-  const handleShare = async (platform: 'fb' | 'wa' | 'tw' | 'copy' | 'native') => {
-    const url = window.location.href;
-    const text = `${book.title} - ${book.author} | ফিউচার নিউজ ই-লাইব্রেরি`;
-
-    if (platform === 'native' && typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title: book.title,
-          text: `${text}\n${book.description?.slice(0, 100) || ''}`,
-          url: url,
-        });
-        return;
-      } catch (e) {
-        // User cancelled or share failed, fallback to copy
-      }
-    }
-
-    if (platform === 'copy') {
-      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      }
-      return;
-    }
-
-    let shareUrl = '';
-    if (platform === 'fb') {
-      shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-    } else if (platform === 'wa') {
-      shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${text}\n${url}`)}`;
-    } else if (platform === 'tw') {
-      shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    }
-
-    if (shareUrl && typeof window !== 'undefined') {
-      window.open(shareUrl, '_blank', 'noopener,noreferrer,width=600,height=450');
-    }
-  };
 
   const relatedBooks = allBooks
     .filter((b) => b.id !== book.id && (b.category === book.category || b.is_featured))
@@ -267,52 +225,6 @@ export const BookDetail: React.FC<BookDetailProps> = ({
                       )}
                     </button>
                   )}
-                </div>
-
-                {/* Social Share Bar */}
-                <div className="flex flex-wrap items-center gap-2 pt-2 text-xs text-stone-500">
-                  <span className="font-semibold">{language === 'bn' ? 'শেয়ার করুন:' : 'Share:'}</span>
-
-                  {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
-                    <button
-                      type="button"
-                      onClick={() => handleShare('native')}
-                      className="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold transition-colors flex items-center gap-1 active:scale-95"
-                    >
-                      <Share2 className="w-3.5 h-3.5 text-rose-600" />
-                      <span>{language === 'bn' ? 'মোবাইলে শেয়ার' : 'Share'}</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleShare('fb')}
-                    className="px-2.5 py-1 rounded bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] font-semibold transition-colors"
-                  >
-                    Facebook
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('wa')}
-                    className="px-2.5 py-1 rounded bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] font-semibold transition-colors"
-                  >
-                    WhatsApp
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('tw')}
-                    className="px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold transition-colors"
-                  >
-                    Twitter (X)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare('copy')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold transition-colors sm:ml-auto"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                    <span>{copied ? (language === 'bn' ? 'কপি হয়েছে!' : 'Copied!') : language === 'bn' ? 'লিংক কপি' : 'Copy Link'}</span>
-                  </button>
                 </div>
               </div>
             </div>

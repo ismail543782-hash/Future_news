@@ -10,6 +10,44 @@
     <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <meta name="google-site-verification" content="uFkfMw3Lp9m0I94ZvengPgY4RRXjCE4NQ9bmaeW4M38" />
     <link rel="canonical" href="https://futurenews65.netlify.app/" />
+    <script>
+      // Global error shield to prevent third-party / cross-origin "Script error."
+      window.addEventListener('error', function (event) {
+        if (!event) return;
+        var msg = (event.message || '');
+        var src = (event.filename || '');
+        if (
+          msg === 'Script error.' ||
+          (typeof msg === 'string' && msg.toLowerCase().indexOf('script error') !== -1) ||
+          (src && src.indexOf(window.location.origin) === -1)
+        ) {
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          event.stopPropagation && event.stopPropagation();
+          event.preventDefault && event.preventDefault();
+          return true;
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function (event) {
+        if (!event) return;
+        var reason = event.reason;
+        var msg = (reason && (reason.message || String(reason))) || '';
+        if (msg.indexOf('Script error') !== -1) {
+          event.preventDefault && event.preventDefault();
+        }
+      }, true);
+
+      window.onerror = function (msg, url) {
+        if (
+          msg === 'Script error.' ||
+          (typeof msg === 'string' && msg.toLowerCase().indexOf('script error') !== -1) ||
+          (url && url.indexOf(window.location.origin) === -1)
+        ) {
+          return true;
+        }
+        return false;
+      };
+    </script>
     <meta property="og:title" content="Future News - Premium Publishing & Media Portal" />
     <meta property="og:description" content="দৈনিক ফিউচার নিউজ - দেশ বিদেশের সর্বশেষ ব্রেকিং নিউজ, রাজনীতি, বাণিজ্য, প্রযুক্তি এবং ডিজিটাল ই-বুক লাইব্রেরি।" />
     <meta property="og:type" content="website" />

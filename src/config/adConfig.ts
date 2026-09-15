@@ -86,8 +86,8 @@ export interface AdSystemConfig {
 }
 
 export const DEFAULT_AD_CONFIG: AdSystemConfig = {
-  // 👈 এখানে 'adsterra' অথবা 'adsense' সিলেক্ট করুন
-  activeNetwork: 'adsterra',
+  // 👈 এখানে 'custom', 'adsterra' অথবা 'adsense' সিলেক্ট করতে পারেন
+  activeNetwork: 'custom',
 
   // --------------------------------------------------------------------------
   // 🔵 গুগল অ্যাডসেন্স সেটিংস (ভবিষ্যতে এপ্রুভাল পেলে এটি আপডেট করবেন)
@@ -158,10 +158,10 @@ export const DEFAULT_AD_CONFIG: AdSystemConfig = {
       adSenseSlotId: '4567890123',
     },
 
-    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার
+    // ৫. মোবাইল স্ক্রিনের নিচে ভাসমান স্টিকি বার (বিরক্তিকর হওয়ায় সম্পূর্ণ বন্ধ করা হয়েছে)
     sticky_bottom: {
-      enabled: true,
-      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (Sticky Footer)',
+      enabled: false,
+      label: 'স্টিকি বটম ফ্লোটিং ব্যানার (নিষ্ক্রিয়)',
       sizeHint: 'রেস্পনসিভ ফ্লোটিং বার',
       adsterraHtml: ``,
       adSenseSlotId: '5678901234',

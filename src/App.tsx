@@ -31,7 +31,6 @@ import { BookDetail } from './components/BookDetail';
 import { BookReader } from './components/BookReader';
 import { BookEditor } from './components/admin/BookEditor';
 import { AdBanner } from './components/AdBanner';
-import { StickyBottomAd } from './components/StickyBottomAd';
 import { Footer } from './components/Footer';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -938,9 +937,6 @@ export default function App() {
           </main>
         )}
       </div>
-
-      {/* Sticky Bottom Floating Banner Ad */}
-      <StickyBottomAd />
 
       {/* Footer */}
       <Footer
