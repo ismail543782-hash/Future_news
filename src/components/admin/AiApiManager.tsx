@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Bot,
   Key,
@@ -16,6 +16,8 @@ import {
   Eye,
   EyeOff,
   Terminal,
+  Share2,
+  MessageCircle,
 } from 'lucide-react';
 
 interface AuditLog {
@@ -31,14 +33,17 @@ interface AuditLog {
 export const AiApiManager: React.FC = () => {
   const [apiKey, setApiKey] = useState<string>('');
   const [maskedKey, setMaskedKey] = useState<string>('••••••••••••••••••••••••••••••••');
-  const [showKey, setShowKey] = useState<boolean>(false);
+  const [showKey, setShowKey] = useState<boolean>(true); // Default to visible for easy manual copying
   const [copiedKey, setCopiedKey] = useState<boolean>(false);
+  const [copiedMessage, setCopiedMessage] = useState<boolean>(false);
   const [copiedSchema, setCopiedSchema] = useState<boolean>(false);
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [copiedCurl, setCopiedCurl] = useState<boolean>(false);
   const [isRotating, setIsRotating] = useState<boolean>(false);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'chatgpt_guide' | 'tester' | 'logs'>('overview');
+
+  const keyInputRef = useRef<HTMLInputElement>(null);
 
   // Interactive Test State
   const [testTitle, setTestTitle] = useState('এআই ও রোবটিক্সে নতুন প্রযুক্তি বিপ্লব ২০২৬');
@@ -76,10 +81,73 @@ export const AiApiManager: React.FC = () => {
     fetchKeyInfo();
   }, []);
 
-  const handleCopy = (text: string, setter: (val: boolean) => void) => {
-    navigator.clipboard.writeText(text);
-    setter(true);
-    setTimeout(() => setter(false), 2200);
+  const handleCopy = async (text: string, setter: (val: boolean) => void) => {
+    if (!text) return;
+    let copied = false;
+
+    // 1. Try modern navigator.clipboard
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (err) {
+        console.warn('navigator.clipboard writeText failed, trying fallback...', err);
+      }
+    }
+
+    // 2. Try classic textarea document.execCommand('copy')
+    if (!copied) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '-9999px';
+        textArea.setAttribute('readonly', '');
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.warn('execCommand copy failed:', err);
+      }
+    }
+
+    // 3. Fallback prompt if clipboard access is blocked in sandbox iframe
+    if (!copied) {
+      try {
+        window.prompt('নিচের বক্স থেকে এপিআই কি কপি করুন (Ctrl+C / Cmd+C চাপুন):', text);
+        copied = true;
+      } catch (err) {
+        console.error('Prompt fallback failed:', err);
+      }
+    }
+
+    if (copied) {
+      setter(true);
+      setTimeout(() => setter(false), 3000);
+    }
+  };
+
+  const handleSelectKey = () => {
+    if (keyInputRef.current) {
+      keyInputRef.current.focus();
+      keyInputRef.current.select();
+    }
+  };
+
+  const shareMessageText = `Future News AI Publishing API Key:
+${apiKey}
+
+API Documentation: ${baseUrl}/api/ai/docs
+OpenAPI Spec URL: ${openApiUrl}`;
+
+  const handleShareToWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Future News AI Publishing API Key:\n${apiKey}\n\nAPI Documentation: ${baseUrl}/api/ai/docs\nOpenAPI Spec: ${openApiUrl}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
   const handleRotateKey = async () => {
@@ -266,56 +334,128 @@ Instructions for calling the API:
         <div className="space-y-6">
           {/* API Key Box */}
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Key className="w-5 h-5 text-indigo-600" />
                 <h3 className="text-base font-bold text-stone-900">গোপন AI Publishing API Key</h3>
               </div>
-              <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded border border-emerald-200">
-                Rate Limit: 60 req/min
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded border border-emerald-200">
+                  Rate Limit: 60 req/min
+                </span>
+                <span className="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded border border-indigo-200">
+                  ai_publisher
+                </span>
+              </div>
             </div>
 
             <p className="text-xs text-stone-600">
-              এই গোপন কি-টি ChatGPT-র Custom GPT "Actions" অথেনটিকেশনে <code className="bg-stone-100 px-1 py-0.5 rounded text-indigo-600 font-mono">Bearer Token</code> হিসেবে ব্যবহৃত হয়।
+              এই গোপন কি-টি ChatGPT-র Custom GPT "Actions" অথেনটিকেশনে <code className="bg-stone-100 px-1 py-0.5 rounded text-indigo-600 font-mono">Bearer Token</code> হিসেবে ব্যবহৃত হয়। আপনি এটি কপি করে সরাসরি চ্যাটজিপিটি বা আপনার ডেভেলপারকে পাঠাতে পারেন।
             </p>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  readOnly
-                  value={apiKey || maskedKey}
-                  className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-mono text-stone-800 pr-10 focus:outline-hidden"
-                />
+            {/* Input & Primary Copy / Select Buttons */}
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    ref={keyInputRef}
+                    type={showKey ? 'text' : 'password'}
+                    readOnly
+                    value={apiKey || maskedKey}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    title="ক্লিক করলেই সম্পূর্ণ কি সিলেক্ট হবে"
+                    className="w-full bg-stone-50 hover:bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono text-stone-900 pr-10 transition select-all shadow-inner"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 rounded-md"
+                    title={showKey ? 'হাইড করুন (Hide)' : 'দেখান (Show Plaintext)'}
+                  >
+                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-1"
-                  title={showKey ? 'হাইড করুন' : 'দেখান'}
+                  id="btn-copy-ai-key-main"
+                  onClick={() => handleCopy(apiKey, setCopiedKey)}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shrink-0 shadow-xs ${
+                    copiedKey
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  }`}
                 >
-                  {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {copiedKey ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedKey ? 'কপি সফল হয়েছে!' : 'API Key কপি করুন'}</span>
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleCopy(apiKey, setCopiedKey)}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
-              >
-                {copiedKey ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedKey ? 'কপি হয়েছে!' : 'Copy API Key'}</span>
-              </button>
+              {/* Instant Success Alert */}
+              {copiedKey && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-800 flex items-center justify-between animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span><strong>ক্লিপবোর্ডে কপি হয়েছে!</strong> এটি এখন ChatGPT, WhatsApp বা আপনার মেসেঞ্জারে পেস্ট (Ctrl+V / Paste) করে পাঠিয়ে দিন।</span>
+                  </div>
+                </div>
+              )}
 
-              <button
-                type="button"
-                onClick={handleRotateKey}
-                disabled={isRotating}
-                className="px-3 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 shrink-0 border border-stone-300"
+              {/* Quick Actions Row: Select All, Share to WhatsApp, Copy Details, Rotate */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSelectKey}
+                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg border border-stone-300 transition flex items-center gap-1.5"
+                  title="সম্পূর্ণ কি হাইলাইট করুন"
+                >
+                  <span>সব সিলেক্ট করুন (Select All)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareToWhatsApp}
+                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-300 transition flex items-center gap-1.5"
+                  title="WhatsApp-এ সরাসরি শেয়ার করুন"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>WhatsApp-এ শেয়ার</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopy(shareMessageText, setCopiedMessage)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5"
+                  title="API Key ও ডক্সের লিংকসহ পুরো মেসেজ কপি করুন"
+                >
+                  {copiedMessage ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
+                  <span>{copiedMessage ? 'মেসেজ কপি হয়েছে!' : 'সম্পূর্ণ মেসেজ কপি করুন'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRotateKey}
+                  disabled={isRotating}
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg border border-rose-200 transition flex items-center gap-1.5 ml-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRotating ? 'animate-spin text-rose-600' : ''}`} />
+                  <span>নতুন কি জেনারেট করুন</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Direct Readable / Selectable Key Box (Ensures manual copy is always 100% possible) */}
+            <div className="p-3.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-300">ম্যানুয়াল কপি বক্স (Plaintext Key Display):</span>
+                <span className="text-[10px] text-indigo-300">যেকোনো জায়গায় ডাবল বা ট্রিপল ক্লিক করে সরাসরি কপি করা যায়</span>
+              </div>
+              <div
+                onClick={handleSelectKey}
+                className="font-mono text-xs text-emerald-300 bg-slate-950 p-2.5 rounded-lg border border-slate-800 break-all select-all cursor-pointer hover:border-indigo-500 transition"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRotating ? 'animate-spin' : ''}`} />
-                <span>নতুন কি তৈরি করুন</span>
-              </button>
+                {apiKey || 'API Key লোড হচ্ছে...'}
+              </div>
             </div>
           </div>
 
@@ -439,16 +579,34 @@ Instructions for calling the API:
               <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0 mt-0.5">
                 ৩
               </span>
-              <div className="text-xs space-y-1">
+              <div className="text-xs space-y-2 w-full">
                 <strong className="text-stone-900 text-sm">অথেনটিকেশন সেট করুন (Authentication):</strong>
                 <p className="text-stone-600">
                   Actions পেজে <strong>Authentication</strong> গিয়ার আইকনে ক্লিক করুন:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-stone-700 pl-2">
-                  <li><strong>Authentication Type:</strong> নির্বাচন করুন <code>API Key</code></li>
-                  <li><strong>API Key:</strong> আপনার গোপন AI API Key পেস্ট করুন ({apiKey ? 'উপরে বিদ্যমান' : 'প্যানেল থেকে সংগ্রহ করুন'})</li>
-                  <li><strong>Auth Type:</strong> নির্বাচন করুন <code>Bearer</code></li>
+                  <li><strong>Authentication Type:</strong> নির্বাচন করুন <code className="bg-stone-100 px-1 py-0.5 rounded font-mono">API Key</code></li>
+                  <li><strong>Auth Type:</strong> নির্বাচন করুন <code className="bg-stone-100 px-1 py-0.5 rounded font-mono">Bearer</code></li>
+                  <li><strong>API Key:</strong> নিচে প্রদর্শিত আপনার গোপন কি-টি পেস্ট করুন:</li>
                 </ul>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    readOnly
+                    value={apiKey}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    className="flex-1 bg-stone-50 border border-indigo-200 rounded-lg px-2.5 py-1.5 text-xs font-mono text-stone-900 select-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(apiKey, setCopiedKey)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0"
+                  >
+                    {copiedKey ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedKey ? 'কপি হয়েছে' : 'Copy API Key'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
