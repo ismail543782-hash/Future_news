@@ -21,6 +21,7 @@ import { AdminBlogManager } from './AdminBlogManager';
 import { AdminSeoCenter } from './AdminSeoCenter';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
 import { AdminBookManager } from './AdminBookManager';
+import { AiApiManager } from './AiApiManager';
 import {
   LayoutDashboard,
   FileText,
@@ -44,6 +45,7 @@ import {
   Globe,
   BookOpen,
   RefreshCw,
+  Bot,
 } from 'lucide-react';
 import { uploadAllLocalDataToCloud } from '../../services/firestoreSync';
 
@@ -63,6 +65,7 @@ type AdminTab =
   | 'analytics'
   | 'articles'
   | 'new_article'
+  | 'ai_api'
   | 'blogs'
   | 'books'
   | 'seo'
@@ -308,6 +311,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <PlusCircle className="w-4 h-4" />
               <span>নতুন খবর প্রকাশ করুন</span>
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-ai-api"
+              onClick={() => {
+                setActiveTab('ai_api');
+                setEditingArticle(null);
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold transition-colors ${
+                activeTab === 'ai_api'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 border border-indigo-200/60'
+              }`}
+            >
+              <Bot className={`w-4 h-4 ${activeTab === 'ai_api' ? 'text-white' : 'text-indigo-600'}`} />
+              <div className="flex items-center justify-between w-full">
+                <span>AI পাবলিশিং ও ChatGPT</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${activeTab === 'ai_api' ? 'bg-white/20 text-white' : 'bg-indigo-600 text-white'}`}>API</span>
+              </div>
             </button>
 
             <button
@@ -777,6 +800,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               books={books}
             />
           )}
+
+          {/* AI Publishing REST API & ChatGPT Connect */}
+          {activeTab === 'ai_api' && !editingArticle && <AiApiManager />}
 
           {/* Netlify Guide & Backup */}
           {activeTab === 'netlify' && !editingArticle && <NetlifyHostingGuide />}
